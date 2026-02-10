@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Академия Анаэль</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Telegram Mini App</p>
+          <h1>Академия Анаэль</h1>
+        </div>
+        <button class="chip" id="roleChip">Новичок</button>
+      </header>
+
+      <main id="view" class="view"></main>
+
+      <nav class="bottom-nav" aria-label="Навигация по разделам">
+        <button class="tab active" data-tab="home">Главная</button>
+        <button class="tab" data-tab="courses">Курсы</button>
+        <button class="tab" data-tab="library">Материалы</button>
+        <button class="tab" data-tab="profile">Профиль</button>
+      </nav>
+    </div>
+
+    <template id="home-template">
+      <section class="section hero">
+        <p class="label">Добро пожаловать 👋</p>
+        <h2>Все знания компании в одном месте</h2>
+        <p>
+          Здесь собраны курсы, скрипты общения с клиентами и стандарты салонов депиляции,
+          чтобы каждому сотруднику было легко войти в работу.
+        </p>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Быстрый доступ</h3>
+        </div>
+        <div class="cards" id="quickActions"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Ближайшие задачи</h3>
+        </div>
+        <ul class="list" id="taskList"></ul>
+      </section>
+    </template>
+
+    <template id="courses-template">
+      <section class="section">
+        <div class="section-title">
+          <h3>Текущие курсы</h3>
+          <span class="muted">4 программы</span>
+        </div>
+        <div class="cards" id="courseList"></div>
+      </section>
+    </template>
+
+    <template id="library-template">
+      <section class="section">
+        <div class="section-title">
+          <h3>База материалов</h3>
+          <span class="muted">демо-данные</span>
+        </div>
+        <div class="cards" id="libraryList"></div>
+      </section>
+    </template>
+
+    <template id="profile-template">
+      <section class="section profile">
+        <div class="avatar">AA</div>
+        <h3>Алексей, мастер-стажёр</h3>
+        <p class="muted">Прогресс обучения: 38%</p>
+        <div class="progress"><span style="width: 38%"></span></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Статистика</h3>
+        </div>
+        <div class="stats">
+          <article>
+            <p class="big">12</p>
+            <p class="muted">уроков пройдено</p>
+          </article>
+          <article>
+            <p class="big">3</p>
+            <p class="muted">теста сдано</p>
+          </article>
+          <article>
+            <p class="big">2</p>
+            <p class="muted">сертификата</p>
+          </article>
+        </div>
+      </section>
+    </template>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
