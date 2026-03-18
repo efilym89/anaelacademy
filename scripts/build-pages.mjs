@@ -12,6 +12,8 @@ const staticEntries = [
   'course-data.js',
   'progress-store.js',
   'styles.css',
+  '_headers',
+  '_redirects',
   'shared',
   'assets',
   'storage'

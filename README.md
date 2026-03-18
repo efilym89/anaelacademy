@@ -20,6 +20,53 @@ npm start
 
 Открыть: `http://localhost:4173`
 
+## Публичный деплой
+
+### GitHub Pages
+
+Для GitHub Pages уже есть workflow в `.github/workflows/deploy-pages.yml`.
+
+### Cloudflare Pages
+
+Проект подготовлен для Cloudflare Pages как статический SPA с fallback на локальные данные без `/api/bootstrap`.
+
+Что уже настроено:
+
+- статическая сборка: `npm run pages:build`
+- готовый каталог артефактов: `dist-pages/`
+- конфигурация Cloudflare: `wrangler.jsonc`
+- локальный предпросмотр через Wrangler: `npm run cloudflare:dev`
+- ручной деплой через Wrangler: `npm run cloudflare:deploy`
+
+#### Вариант 1. Git integration в Cloudflare Pages
+
+При создании проекта в Cloudflare Pages укажите:
+
+- Framework preset: `None`
+- Production branch: `main`
+- Build command: `npm run pages:build`
+- Build output directory: `dist-pages`
+- Root directory: оставить пустым
+
+После этого Cloudflare будет автоматически собирать и публиковать сайт из GitHub.
+
+#### Вариант 2. Direct Upload через Wrangler
+
+По официальной схеме Cloudflare Direct Upload сначала создается Pages project, затем заливается каталог со статическими файлами.
+
+```bash
+npx wrangler login
+npx wrangler pages project create
+npm run cloudflare:deploy
+```
+
+Продакшен-URL будет вида `<project-name>.pages.dev`.
+
+#### Важно
+
+- Git integration и Direct Upload у Cloudflare — разные режимы проекта, и Cloudflare не дает потом переключить один режим в другой без создания нового проекта.
+- Для статического деплоя не нужен локальный Node-сервер: приложение на Pages берет данные из `shared/course-blueprint.js`, если `/api/bootstrap` недоступен.
+
 ## Структура
 
 ```text
@@ -29,6 +76,7 @@ npm start
 ├── progress-store.js
 ├── index.html
 ├── styles.css
+├── wrangler.jsonc
 ├── shared/
 │   └── course-blueprint.js
 ├── server/
