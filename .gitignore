@@ -24,6 +24,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 dist/
+dist-pages/
 build/
 coverage/
 data/

@@ -1,3 +1,8 @@
+import {
+  dashboardData as fallbackDashboardData,
+  createFallbackCourseData
+} from './shared/course-blueprint.js';
+
 export const dashboardData = {
   brand: {
     eyebrow: '',
@@ -25,24 +30,53 @@ export const academyCourse = {
 };
 
 export async function hydrateCourseData() {
-  const response = await fetch('/api/bootstrap', {
-    headers: {
-      Accept: 'application/json'
+  const apiUrl = new URL('./api/bootstrap', import.meta.url);
+
+  try {
+    const response = await fetch(apiUrl, {
+      headers: {
+        Accept: 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Bootstrap request failed with status ${response.status}`);
     }
-  });
 
-  if (!response.ok) {
-    throw new Error(`Bootstrap request failed with status ${response.status}`);
+    const payload = await response.json();
+    replaceObject(dashboardData, payload.dashboard);
+    replaceObject(academyCourse, payload.course);
+
+    return {
+      source: 'api',
+      course: academyCourse,
+      dashboard: dashboardData
+    };
+  } catch (_) {
+    const payload = createStaticFallbackPayload();
+    replaceObject(dashboardData, payload.dashboard);
+    replaceObject(academyCourse, payload.course);
+
+    return {
+      source: 'static-fallback',
+      course: academyCourse,
+      dashboard: dashboardData
+    };
   }
+}
 
-  const payload = await response.json();
-  replaceObject(dashboardData, payload.dashboard);
-  replaceObject(academyCourse, payload.course);
+function createStaticFallbackPayload() {
+  const fallbackCourse = createFallbackCourseData();
+  fallbackCourse.meta = {
+    ...(fallbackCourse.meta ?? {}),
+    source: 'static-fallback',
+    database: 'none',
+    storageProvider: 'static'
+  };
 
   return {
-    source: 'api',
-    course: academyCourse,
-    dashboard: dashboardData
+    dashboard: clonePlain(fallbackDashboardData),
+    course: clonePlain(fallbackCourse)
   };
 }
 
