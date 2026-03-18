@@ -97,6 +97,8 @@ const tabs = Array.from(document.querySelectorAll('.tab'));
 
 let progress = null;
 let pendingToast = '';
+let viewportResizeBound = false;
+let telegramViewportEventsBound = false;
 const SEEK_TOLERANCE_SECONDS = 1.5;
 const PRESENTATION_PREVIEW_LOADING_TEXT = 'Готовим PDF-превью презентации...';
 const presentationPreviewState = new Map();
@@ -131,6 +133,7 @@ window.addEventListener('storage', () => {
   renderCurrentRoute();
 });
 
+ensureViewportSync();
 bootstrapApp();
 
 async function bootstrapApp() {
@@ -2365,6 +2368,7 @@ function escapeHtml(value) {
 function initTelegram() {
   const webApp = window.Telegram?.WebApp;
   if (!webApp) {
+    ensureViewportSync();
     return;
   }
 
@@ -2372,12 +2376,82 @@ function initTelegram() {
   webApp.expand();
   webApp.setHeaderColor?.('#121417');
   webApp.setBackgroundColor?.('#121417');
+  webApp.setBottomBarColor?.('#121417');
+  ensureViewportSync(webApp);
+  window.requestAnimationFrame(() => syncViewportMetrics(webApp));
 
   const roleChip = document.querySelector('#roleChip');
   const firstName = webApp.initDataUnsafe?.user?.first_name;
   if (firstName && roleChip) {
     roleChip.textContent = firstName;
   }
+}
+
+function ensureViewportSync(webApp = window.Telegram?.WebApp) {
+  syncViewportMetrics(webApp);
+
+  const handleViewportChange = () => syncViewportMetrics(window.Telegram?.WebApp);
+
+  if (!viewportResizeBound) {
+    viewportResizeBound = true;
+    window.addEventListener('resize', handleViewportChange, { passive: true });
+  }
+
+  if (webApp && !telegramViewportEventsBound) {
+    telegramViewportEventsBound = true;
+    webApp.onEvent?.('viewportChanged', handleViewportChange);
+    webApp.onEvent?.('safeAreaChanged', handleViewportChange);
+    webApp.onEvent?.('contentSafeAreaChanged', handleViewportChange);
+  }
+}
+
+function syncViewportMetrics(webApp = window.Telegram?.WebApp) {
+  const root = document.documentElement;
+  const viewportHeight = resolveViewportPixels(webApp?.viewportHeight, window.innerHeight);
+  const stableHeight = resolveViewportPixels(webApp?.viewportStableHeight, viewportHeight);
+  const contentSafeArea = normalizeInsets(webApp?.contentSafeAreaInset);
+  const safeArea = normalizeInsets(webApp?.safeAreaInset);
+  const effectiveInsets = {
+    top: contentSafeArea.top || safeArea.top,
+    right: contentSafeArea.right || safeArea.right,
+    bottom: contentSafeArea.bottom || safeArea.bottom,
+    left: contentSafeArea.left || safeArea.left
+  };
+
+  root.style.setProperty('--app-height', `${viewportHeight}px`);
+  root.style.setProperty('--app-stable-height', `${stableHeight}px`);
+  root.style.setProperty('--safe-area-top', `${effectiveInsets.top}px`);
+  root.style.setProperty('--safe-area-right', `${effectiveInsets.right}px`);
+  root.style.setProperty('--safe-area-bottom', `${effectiveInsets.bottom}px`);
+  root.style.setProperty('--safe-area-left', `${effectiveInsets.left}px`);
+}
+
+function normalizeInsets(insets) {
+  return {
+    top: normalizeInsetValue(insets?.top),
+    right: normalizeInsetValue(insets?.right),
+    bottom: normalizeInsetValue(insets?.bottom),
+    left: normalizeInsetValue(insets?.left)
+  };
+}
+
+function normalizeInsetValue(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return 0;
+  }
+
+  return Math.round(numericValue);
+}
+
+function resolveViewportPixels(value, fallback) {
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue) && numericValue > 0) {
+    return Math.round(numericValue);
+  }
+
+  const fallbackValue = Number(fallback);
+  return Number.isFinite(fallbackValue) && fallbackValue > 0 ? Math.round(fallbackValue) : 0;
 }
 
 function showToast(message) {
