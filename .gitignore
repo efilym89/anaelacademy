@@ -26,6 +26,13 @@ pnpm-debug.log*
 dist/
 build/
 coverage/
+data/
+storage/**/*.mp4
+storage/**/*.m4v
+storage/**/*.mov
+storage/**/*.webm
+storage/**/*.mkv
+storage/**/*.pptx
 
 # Python
 __pycache__/

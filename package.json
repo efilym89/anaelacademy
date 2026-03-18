@@ -1,0 +1,13 @@
+{
+  "name": "anaelacademy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning server/index.js",
+    "dev": "node --no-warnings=ExperimentalWarning server/index.js",
+    "db:seed": "node --no-warnings=ExperimentalWarning server/scripts/seed-db.js",
+    "db:sync-storage": "node --no-warnings=ExperimentalWarning server/scripts/sync-storage.js",
+    "storage:normalize": "node --no-warnings=ExperimentalWarning server/scripts/normalize-storage.js"
+  }
+}
