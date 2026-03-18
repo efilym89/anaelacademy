@@ -26,9 +26,9 @@ npm start
 
 Для GitHub Pages уже есть workflow в `.github/workflows/deploy-pages.yml`.
 
-### Cloudflare Pages
+### Cloudflare
 
-Проект подготовлен для Cloudflare Pages как статический SPA с fallback на локальные данные без `/api/bootstrap`.
+Проект подготовлен для Cloudflare Workers Static Assets как статический SPA с fallback на локальные данные без `/api/bootstrap`.
 
 Что уже настроено:
 
@@ -37,35 +37,39 @@ npm start
 - конфигурация Cloudflare: `wrangler.jsonc`
 - локальный предпросмотр через Wrangler: `npm run cloudflare:dev`
 - ручной деплой через Wrangler: `npm run cloudflare:deploy`
+- `workers.dev` и preview URLs включены в `wrangler.jsonc`
 
-#### Вариант 1. Git integration в Cloudflare Pages
+#### Вариант 1. Git integration в Cloudflare Workers
 
-При создании проекта в Cloudflare Pages укажите:
+Если проект подключен через Git в Cloudflare Workers, укажите в `Settings -> Builds`:
 
-- Framework preset: `None`
-- Production branch: `main`
 - Build command: `npm run pages:build`
-- Build output directory: `dist-pages`
-- Root directory: оставить пустым
+- Deploy command: `npx wrangler deploy`
+- Branch: `main`
 
-После этого Cloudflare будет автоматически собирать и публиковать сайт из GitHub.
+После этого Cloudflare будет собирать `dist-pages` и публиковать его как статические assets Worker'а.
 
-#### Вариант 2. Direct Upload через Wrangler
+Если сейчас по ссылке открывается `hello world`, это означает, что Cloudflare развернул дефолтный Worker, а не наш собранный фронт. После обновления build settings нужно запустить новый deploy или `Retry deployment`.
 
-По официальной схеме Cloudflare Direct Upload сначала создается Pages project, затем заливается каталог со статическими файлами.
+Публичный адрес будет вида:
+
+`https://<project-name>.<account-subdomain>.workers.dev`
+
+#### Вариант 2. Direct deploy через Wrangler
+
+По официальной схеме Cloudflare Worker со статическими asset'ами можно задеплоить напрямую из локальной машины:
 
 ```bash
 npx wrangler login
-npx wrangler pages project create
 npm run cloudflare:deploy
 ```
 
-Продакшен-URL будет вида `<project-name>.pages.dev`.
+Продакшен-URL будет на `workers.dev`, если для Worker включен публичный маршрут.
 
 #### Важно
 
-- Git integration и Direct Upload у Cloudflare — разные режимы проекта, и Cloudflare не дает потом переключить один режим в другой без создания нового проекта.
-- Для статического деплоя не нужен локальный Node-сервер: приложение на Pages берет данные из `shared/course-blueprint.js`, если `/api/bootstrap` недоступен.
+- Workers Builds использует отдельный Build command в настройках Cloudflare. По официальной документации Cloudflare не применяет `build.command` из Wrangler-конфига для Git-based build'ов, поэтому команду сборки нужно задать именно в Dashboard.
+- Для статического деплоя не нужен локальный Node-сервер: приложение берет данные из `shared/course-blueprint.js`, если `/api/bootstrap` недоступен.
 
 ## Структура
 

@@ -1,6 +1,12 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "anaelacademy",
-  "pages_build_output_dir": "dist-pages",
   "compatibility_date": "2026-03-18",
-  "send_metrics": false
+  "send_metrics": false,
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist-pages",
+    "not_found_handling": "single-page-application"
+  }
 }
