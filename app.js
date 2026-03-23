@@ -1910,6 +1910,8 @@ function bindLessonQuizActions(lesson) {
     return;
   }
 
+  bindAssessmentOptionInteractions(quizForm);
+
   quizForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const answers = collectAnswers(quizForm, lesson.quiz.questions);
@@ -2059,6 +2061,8 @@ function bindFinalExamActions() {
     return;
   }
 
+  bindAssessmentOptionInteractions(examForm);
+
   examForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const answers = collectAnswers(examForm, academyCourse.finalExam.questions);
@@ -2119,7 +2123,7 @@ function buildAssessmentMarkup({
           ${renderStatusChip(`Лучший результат: ${progressState.bestScore}/${assessment.questions.length}`, 'success')}
           ${renderStatusChip(`Попыток: ${progressState.attempts}`, 'warning')}
         </div>
-        <div class="action-row">
+        <div class="action-row action-row--result">
           ${successActions}
         </div>
       </article>
@@ -2177,15 +2181,46 @@ function buildQuestionMarkup(question, index, selectedOptionId) {
 }
 
 function collectAnswers(form, questions) {
-  const formData = new FormData(form);
+  const selectedAnswers = new Map(
+    Array.from(form.querySelectorAll('input[type="radio"]:checked')).map((input) => [input.name, input.value])
+  );
 
   return questions.reduce((accumulator, question) => {
-    const selectedOptionId = formData.get(question.id);
+    const selectedOptionId = selectedAnswers.get(question.id);
     if (typeof selectedOptionId === 'string') {
       accumulator[question.id] = selectedOptionId;
     }
     return accumulator;
   }, {});
+}
+
+function bindAssessmentOptionInteractions(scope) {
+  scope.querySelectorAll('.answer-option').forEach((option) => {
+    const input = option.querySelector('input[type="radio"]');
+    if (!input) {
+      return;
+    }
+
+    const syncGroupState = () => {
+      const answersGroup = option.closest('.answers');
+      if (!answersGroup) {
+        return;
+      }
+
+      answersGroup.querySelectorAll('.answer-option').forEach((item) => {
+        const itemInput = item.querySelector('input[type="radio"]');
+        item.classList.toggle('answer-option--selected', Boolean(itemInput?.checked));
+      });
+    };
+
+    option.addEventListener('click', () => {
+      input.checked = true;
+      syncGroupState();
+    });
+
+    input.addEventListener('change', syncGroupState);
+    syncGroupState();
+  });
 }
 
 function getMissingQuestions(questions, answers) {
