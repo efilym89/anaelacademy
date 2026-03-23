@@ -26,6 +26,9 @@ const tabTitles = {
   ambassadors: 'Профиль'
 };
 
+const PLATFORM_TITLE = 'Академия Annaelle';
+const PLATFORM_TAGLINE = 'Знания, сервис, результат';
+
 const defaultCategories = [
   {
     id: 'courses',
@@ -105,7 +108,6 @@ const presentationPreviewState = new Map();
 const uiState = {
   homeSearch: '',
   courseSearch: '',
-  courseSort: 'newest',
   presentationSearch: '',
   favoritesSearch: ''
 };
@@ -140,6 +142,8 @@ async function bootstrapApp() {
   document.title = 'Академия студий лазерной эпиляции Annaelle';
   renderLoadingState('Подключаем курс, медиа и текущий прогресс...');
 
+  document.title = PLATFORM_TITLE;
+
   try {
     await hydrateCourseData();
     progress = loadCourseProgress(academyCourse);
@@ -168,11 +172,18 @@ function applyBranding() {
     title.textContent = brand.title || academyCourse.title || 'Академия студий лазерной эпиляции Annaelle';
   }
 
+  if (title) {
+    title.textContent = PLATFORM_TITLE;
+  }
+
   if (subtitle) {
     subtitle.textContent =
       brand.subtitle ||
       academyCourse.description ||
       'Мобильная программа обучения для команды студий Annaelle';
+  }
+  if (subtitle) {
+    subtitle.textContent = PLATFORM_TAGLINE;
   }
 }
 
@@ -508,12 +519,19 @@ function renderHome() {
     </section>
   `;
 
+  view.querySelector('.hero-panel--home .eyebrow')?.replaceChildren('Мой прогресс');
+  view.querySelector('.hero-panel--home h2')?.remove();
+  const homeHeroSubtitle = view.querySelector('.hero-panel--home .muted');
+  if (homeHeroSubtitle) {
+    homeHeroSubtitle.textContent = PLATFORM_TAGLINE;
+  }
+
   bindHomeActions();
 }
 
 function renderCourses() {
   const summary = getCourseSummary(academyCourse, progress);
-  const lessons = getFilteredLessons(academyCourse.lessons, uiState.courseSearch, uiState.courseSort);
+  const lessons = getFilteredLessons(academyCourse.lessons, uiState.courseSearch, 'course');
 
   view.innerHTML = `
     <section class="screen-stack">
@@ -588,17 +606,17 @@ function renderCourses() {
     </section>
   `;
 
+  view.querySelector('.hero-panel--accent h2')?.remove();
+  view.querySelector('.hero-panel--accent .stats-strip')?.classList.add('stats-strip--courses');
+  view.querySelector('.filter-select')?.remove();
+  view.querySelector('.filters-bar')?.classList.add('filters-bar--single');
+
   document.querySelector('#backHome')?.addEventListener('click', () => {
     navigateToRoute({ tab: 'home', screen: 'home' });
   });
 
   document.querySelector('#courseSearchInput')?.addEventListener('input', (event) => {
     uiState.courseSearch = event.target.value;
-    renderCourses();
-  });
-
-  document.querySelector('#courseSortSelect')?.addEventListener('change', (event) => {
-    uiState.courseSort = event.target.value;
     renderCourses();
   });
 

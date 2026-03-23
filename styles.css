@@ -441,6 +441,10 @@ h3 {
   margin-top: 14px;
 }
 
+.stats-strip--courses {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .metric-card {
   display: grid;
   gap: 4px;
@@ -475,6 +479,10 @@ h3 {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.95fr);
   gap: 10px;
+}
+
+.filters-bar--single {
+  grid-template-columns: 1fr;
 }
 
 .filter-select {
@@ -1219,7 +1227,19 @@ h3 {
     margin-top: 10px;
   }
 
+  .stats-strip--courses {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
   .stats-strip--home .metric-card {
+    min-height: 74px;
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .stats-strip--courses .metric-card {
     min-height: 74px;
     padding: 10px;
     border-radius: 16px;
@@ -1231,6 +1251,16 @@ h3 {
   }
 
   .stats-strip--home .metric-card span {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .stats-strip--courses .metric-card strong {
+    font-size: clamp(18px, 5.7vw, 22px);
+    line-height: 1;
+  }
+
+  .stats-strip--courses .metric-card span {
     font-size: 11px;
     line-height: 1.2;
   }
@@ -1389,7 +1419,17 @@ h3 {
     margin-top: 8px;
   }
 
+  .stats-strip--courses {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
   .stats-strip--home .metric-card {
+    min-height: 66px;
+    padding: 8px;
+  }
+
+  .stats-strip--courses .metric-card {
     min-height: 66px;
     padding: 8px;
   }
