@@ -273,6 +273,8 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
     (storageState.videoFiles ?? []).map((file) => [file.name.toLowerCase(), file])
   );
   const defaultVideoFile = storageState.videoFiles?.[0] ?? null;
+  const lessonFolderRelative = getLessonFolderRelative(lesson.dayNumber, lesson.lessonNumber);
+  const fallbackVideoRelativePath = path.posix.join(lessonFolderRelative, 'video.mp4');
 
   if (Array.isArray(metadata.videoSequence) && metadata.videoSequence.length > 0) {
     return metadata.videoSequence.map((entry, index) => {
@@ -280,13 +282,20 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
       const resolvedFile =
         availableVideoFiles.get(fileReference.toLowerCase()) ?? (!fileReference && index === 0 ? defaultVideoFile : null);
       const durationSeconds = entry.videoDurationSeconds ?? lesson.durationSeconds ?? null;
+      const syntheticRelativePath =
+        resolvedFile?.relativePath ??
+        (fileReference
+          ? path.posix.join(lessonFolderRelative, path.posix.basename(fileReference))
+          : index === 0
+            ? fallbackVideoRelativePath
+            : '');
 
       return {
         id: entry.id || `${lesson.id}-video-${index + 1}`,
         order: index + 1,
         title: entry.title || `Видео ${index + 1}`,
-        src: resolvedFile ? toPublicStorageUrl(resolvedFile.relativePath) : '',
-        relativePath: resolvedFile ? path.posix.join('storage', resolvedFile.relativePath) : '',
+        src: syntheticRelativePath ? toPublicStorageUrl(syntheticRelativePath) : '',
+        relativePath: syntheticRelativePath ? path.posix.join('storage', syntheticRelativePath) : '',
         completionThreshold: clampCompletionThreshold(entry.completionThreshold ?? lesson.video?.completionThreshold),
         placeholderNote: entry.placeholderNote || lesson.video?.placeholderNote || '',
         durationSeconds,
@@ -300,8 +309,8 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
       id: `${lesson.id}-video-1`,
       order: 1,
       title: 'Видео 1',
-      src: defaultVideoFile ? toPublicStorageUrl(defaultVideoFile.relativePath) : lesson.video?.src ?? '',
-      relativePath: defaultVideoFile ? path.posix.join('storage', defaultVideoFile.relativePath) : lesson.video?.relativePath ?? '',
+      src: toPublicStorageUrl(defaultVideoFile?.relativePath ?? fallbackVideoRelativePath),
+      relativePath: path.posix.join('storage', defaultVideoFile?.relativePath ?? fallbackVideoRelativePath),
       completionThreshold: clampCompletionThreshold(lesson.video?.completionThreshold),
       placeholderNote: metadata.placeholderNote || lesson.video?.placeholderNote || '',
       durationSeconds: metadata.videoDurationSeconds ?? lesson.durationSeconds ?? null,
