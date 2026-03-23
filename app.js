@@ -912,8 +912,6 @@ function buildLessonHeroMedia(lesson, lessonProgress, activeVideo, videoMeta) {
       : 'Готово';
   const statusTone = !videoMeta.hasSource ? 'muted' : activeVideoProgress.completed ? 'success' : 'warning';
   const videoOrderLabel = videoItems.length > 1 ? `Видео ${activeVideo.order}` : 'Урок';
-  const sourceType = videoMeta.mimeType ? ` type="${escapeHtml(videoMeta.mimeType)}"` : '';
-
   return `
     <div class="lesson-player-card" data-video-shell data-video-state="${videoMeta.hasSource ? 'idle' : 'missing'}">
       <div class="lesson-player-card__media">
@@ -924,6 +922,7 @@ function buildLessonHeroMedia(lesson, lessonProgress, activeVideo, videoMeta) {
                 id="lessonVideo"
                 class="lesson-player-card__video"
                 data-video-id="${escapeHtml(activeVideo.id)}"
+                src="${escapeHtml(activeVideo.src)}"
                 controls
                 controlsList="nodownload noplaybackrate"
                 disablepictureinpicture
@@ -932,9 +931,7 @@ function buildLessonHeroMedia(lesson, lessonProgress, activeVideo, videoMeta) {
                 preload="metadata"
                 poster="${escapeHtml(posterUrl)}"
                 aria-label="${escapeHtml(`Видео урока ${lesson.title}`)}"
-              >
-                <source src="${escapeHtml(activeVideo.src)}"${sourceType} />
-              </video>
+              ></video>
             `
             : `
               <img
@@ -1627,6 +1624,51 @@ function createGeneratedLessonPreviewDataUrl(lesson, options = {}) {
     .join('');
 
   if (playerVariant) {
+    const artOnlySvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="${escapeSvgContent(title)}">
+        <defs>
+          <linearGradient id="playerBg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="${palette.base}" />
+            <stop offset="56%" stop-color="${palette.secondary}" />
+            <stop offset="100%" stop-color="${palette.base}" />
+          </linearGradient>
+          <radialGradient id="playerGlowA" cx="22%" cy="18%" r="60%">
+            <stop offset="0%" stop-color="${palette.glow}" stop-opacity="0.62" />
+            <stop offset="100%" stop-color="${palette.glow}" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="playerGlowB" cx="82%" cy="18%" r="54%">
+            <stop offset="0%" stop-color="${palette.accent}" stop-opacity="0.32" />
+            <stop offset="100%" stop-color="${palette.accent}" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="playerSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="rgba(255,255,255,0.18)" />
+            <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="675" rx="36" fill="url(#playerBg)" />
+        <rect x="18" y="18" width="1164" height="639" rx="30" fill="rgba(10,12,16,0.08)" stroke="rgba(255,255,255,0.08)" />
+        <circle cx="248" cy="124" r="296" fill="url(#playerGlowA)" />
+        <circle cx="972" cy="112" r="256" fill="url(#playerGlowB)" />
+        <path d="M93 498C223 410 347 383 493 397C657 413 771 505 945 503C1017 502 1086 485 1146 451" fill="none" stroke="${palette.accent}" stroke-opacity="0.26" stroke-width="26" stroke-linecap="round" />
+        <path d="M112 222C254 188 333 220 435 298C548 384 639 421 761 417C853 414 941 375 1086 268" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="16" stroke-linecap="round" />
+        <circle cx="600" cy="340" r="128" fill="rgba(11,13,17,0.18)" stroke="rgba(255,255,255,0.08)" />
+        <circle cx="600" cy="340" r="92" fill="rgba(11,13,17,0.42)" stroke="rgba(255,255,255,0.14)" />
+        <polygon points="572,289 572,391 656,340" fill="rgba(255,255,255,0.92)" />
+        <rect x="94" y="90" width="188" height="18" rx="9" fill="rgba(255,255,255,0.12)" />
+        <rect x="94" y="122" width="122" height="12" rx="6" fill="rgba(255,255,255,0.09)" />
+        <rect x="958" y="92" width="148" height="18" rx="9" fill="rgba(255,255,255,0.1)" />
+        <rect x="990" y="124" width="116" height="12" rx="6" fill="rgba(255,255,255,0.08)" />
+        <rect x="94" y="562" width="236" height="16" rx="8" fill="rgba(255,255,255,0.1)" />
+        <rect x="94" y="594" width="170" height="12" rx="6" fill="rgba(255,255,255,0.08)" />
+        <rect x="864" y="550" width="242" height="42" rx="21" fill="rgba(7,10,14,0.22)" stroke="rgba(255,255,255,0.12)" />
+        <rect x="892" y="565" width="86" height="12" rx="6" fill="rgba(255,255,255,0.14)" />
+        <rect x="992" y="565" width="86" height="12" rx="6" fill="rgba(255,255,255,0.09)" />
+        <path d="M18 18H1182V173C1072 112 949 84 809 92C666 101 542 151 410 150C281 149 157 102 18 46V18Z" fill="url(#playerSheen)" />
+      </svg>
+    `;
+
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(artOnlySvg)}`;
+
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="${escapeSvgContent(title)}">
         <defs>
@@ -1643,12 +1685,16 @@ function createGeneratedLessonPreviewDataUrl(lesson, options = {}) {
             <stop offset="0%" stop-color="${palette.accent}" stop-opacity="0.32" />
             <stop offset="100%" stop-color="${palette.accent}" stop-opacity="0" />
           </radialGradient>
+          <linearGradient id="sheen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="rgba(255,255,255,0.18)" />
+            <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+          </linearGradient>
         </defs>
         <rect width="1200" height="675" rx="36" fill="url(#bg)" />
         <rect x="18" y="18" width="1164" height="639" rx="30" fill="rgba(10,12,16,0.08)" stroke="rgba(255,255,255,0.08)" />
         <circle cx="248" cy="124" r="296" fill="url(#glowA)" />
         <circle cx="972" cy="112" r="256" fill="url(#glowB)" />
-        <rect x="76" y="68" width="220" height="54" rx="27" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.16)" />
+        <path d="M93 498C223 410 347 383 493 397C657 413 771 505 945 503C1017 502 1086 485 1146 451" fill="none" stroke="${palette.accent}" stroke-opacity="0.26" stroke-width="26" stroke-linecap="round" />
         <text x="106" y="103" fill="${palette.chip}" font-size="20" font-weight="700" font-family="Segoe UI, Arial, sans-serif" letter-spacing="1.2">${escapeSvgContent(
           themeLabel.toUpperCase()
         )}</text>
