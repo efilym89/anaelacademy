@@ -39,8 +39,14 @@ async function handleRequest(request, response) {
   try {
     const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
 
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204, buildCorsHeaders(request));
+      response.end();
+      return;
+    }
+
     if (url.pathname === '/api/health') {
-      sendJson(response, 200, {
+      sendJson(request, response, 200, {
         status: 'ok',
         database: config.databasePath,
         storage: config.storageRoot
@@ -49,14 +55,14 @@ async function handleRequest(request, response) {
     }
 
     if (url.pathname === '/api/bootstrap') {
-      sendJson(response, 200, getBootstrapPayload());
+      sendJson(request, response, 200, getBootstrapPayload());
       return;
     }
 
     const previewMatch = /^\/api\/lessons\/([^/]+)\/presentation-preview$/u.exec(url.pathname);
     if (previewMatch) {
       const previewResponse = await getPresentationPreviewPayload(decodeURIComponent(previewMatch[1]));
-      sendJson(response, previewResponse.statusCode, previewResponse.payload);
+      sendJson(request, response, previewResponse.statusCode, previewResponse.payload);
       return;
     }
 
@@ -64,7 +70,7 @@ async function handleRequest(request, response) {
       const relativeAssetPath = decodeURIComponent(url.pathname.slice(config.publicStoragePrefix.length));
       const absoluteAssetPath = safeResolve(config.storageRoot, relativeAssetPath);
       if (!absoluteAssetPath || !existsSync(absoluteAssetPath)) {
-        sendText(response, 404, 'Asset not found');
+        sendText(request, response, 404, 'Asset not found');
         return;
       }
 
@@ -78,7 +84,7 @@ async function handleRequest(request, response) {
       );
       const absolutePreviewPath = safeResolve(config.presentationPreviewRoot, relativePreviewPath);
       if (!absolutePreviewPath || !existsSync(absolutePreviewPath)) {
-        sendText(response, 404, 'Preview not found');
+        sendText(request, response, 404, 'Preview not found');
         return;
       }
 
@@ -88,13 +94,13 @@ async function handleRequest(request, response) {
 
     const staticTarget = resolveStaticPath(url.pathname);
     if (!staticTarget || !existsSync(staticTarget)) {
-      sendText(response, 404, 'Not found');
+      sendText(request, response, 404, 'Not found');
       return;
     }
 
     serveFile(request, response, staticTarget);
   } catch (error) {
-    sendJson(response, 500, {
+    sendJson(request, response, 500, {
       error: 'Internal server error',
       details: error.message
     });
@@ -135,11 +141,13 @@ function serveFile(request, response, absolutePath, options = {}) {
   const stats = statSync(absolutePath);
   const extension = path.extname(absolutePath).toLowerCase();
   const mimeType = mimeTypes[extension] ?? 'application/octet-stream';
+  const isHeadRequest = request.method === 'HEAD';
 
   if (options.enableRange && request.headers.range) {
     const range = parseRangeHeader(request.headers.range, stats.size);
     if (!range) {
       response.writeHead(416, {
+        ...buildCorsHeaders(request),
         'Content-Range': `bytes */${stats.size}`
       });
       response.end();
@@ -147,22 +155,34 @@ function serveFile(request, response, absolutePath, options = {}) {
     }
 
     response.writeHead(206, {
+      ...buildCorsHeaders(request),
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'no-cache',
       'Content-Length': range.end - range.start + 1,
       'Content-Range': `bytes ${range.start}-${range.end}/${stats.size}`,
       'Content-Type': mimeType
     });
+    if (isHeadRequest) {
+      response.end();
+      return;
+    }
+
     createReadStream(absolutePath, range).pipe(response);
     return;
   }
 
   response.writeHead(200, {
+    ...buildCorsHeaders(request),
     'Accept-Ranges': options.enableRange ? 'bytes' : 'none',
     'Cache-Control': 'no-cache',
     'Content-Length': stats.size,
     'Content-Type': mimeType
   });
+  if (isHeadRequest) {
+    response.end();
+    return;
+  }
+
   createReadStream(absolutePath).pipe(response);
 }
 
@@ -172,8 +192,25 @@ function parseRangeHeader(headerValue, size) {
     return null;
   }
 
-  let start = match[1] ? Number.parseInt(match[1], 10) : 0;
-  let end = match[2] ? Number.parseInt(match[2], 10) : size - 1;
+  if (match[1] === '' && match[2] === '') {
+    return null;
+  }
+
+  let start;
+  let end;
+
+  if (match[1] === '') {
+    const suffixLength = Number.parseInt(match[2], 10);
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+      return null;
+    }
+
+    start = Math.max(size - suffixLength, 0);
+    end = size - 1;
+  } else {
+    start = Number.parseInt(match[1], 10);
+    end = match[2] === '' ? size - 1 : Number.parseInt(match[2], 10);
+  }
 
   if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= size) {
     return null;
@@ -183,9 +220,21 @@ function parseRangeHeader(headerValue, size) {
   return { start, end };
 }
 
-function sendJson(response, statusCode, payload) {
+function buildCorsHeaders(request) {
+  const requestOrigin = String(request.headers.origin || '').trim();
+  return {
+    'Access-Control-Allow-Origin': requestOrigin || '*',
+    'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Range',
+    'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Length, Content-Range, Content-Type',
+    'Cross-Origin-Resource-Policy': 'cross-origin'
+  };
+}
+
+function sendJson(request, response, statusCode, payload) {
   const body = JSON.stringify(payload);
   response.writeHead(statusCode, {
+    ...buildCorsHeaders(request),
     'Cache-Control': 'no-store',
     'Content-Length': Buffer.byteLength(body),
     'Content-Type': 'application/json; charset=utf-8'
@@ -193,8 +242,9 @@ function sendJson(response, statusCode, payload) {
   response.end(body);
 }
 
-function sendText(response, statusCode, message) {
+function sendText(request, response, statusCode, message) {
   response.writeHead(statusCode, {
+    ...buildCorsHeaders(request),
     'Content-Type': 'text/plain; charset=utf-8'
   });
   response.end(message);

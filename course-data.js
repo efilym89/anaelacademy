@@ -30,6 +30,7 @@ export const academyCourse = {
 };
 
 export async function hydrateCourseData() {
+  const bootstrapRequestTimeoutMs = 4500;
   const bootstrapSources = [
     {
       source: 'api',
@@ -43,11 +44,16 @@ export async function hydrateCourseData() {
 
   for (const bootstrapSource of bootstrapSources) {
     try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), bootstrapRequestTimeoutMs);
       const response = await fetch(bootstrapSource.url, {
+        cache: 'no-store',
         headers: {
           Accept: 'application/json'
-        }
+        },
+        signal: controller.signal
       });
+      window.clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Bootstrap request failed with status ${response.status}`);
