@@ -12,6 +12,7 @@ export const config = {
   port: toInteger(getEnvValue('APP_PORT', '4173'), 4173),
   databasePath: resolve(rootDir, getEnvValue('SQLITE_DB_PATH', 'data/anaelacademy.sqlite')),
   storageRoot: resolve(rootDir, getEnvValue('STORAGE_ROOT', 'storage')),
+  publicStorageOrigin: normalizeOrigin(getEnvValue('PUBLIC_STORAGE_ORIGIN', '')),
   presentationPreviewRoot: resolve(
     rootDir,
     getEnvValue('PRESENTATION_PREVIEW_ROOT', 'data/presentation-previews')
@@ -65,4 +66,8 @@ function readEnvFile(filepath) {
 function toInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeOrigin(value) {
+  return String(value || '').trim().replace(/\/+$/u, '');
 }

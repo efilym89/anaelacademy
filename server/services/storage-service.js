@@ -63,7 +63,12 @@ export function toPublicStorageUrl(relativeAssetPath) {
     return '';
   }
 
-  return `${config.publicStoragePrefix}${normalizeRelativePath(relativeAssetPath)}`;
+  const normalizedRelativePath = normalizeRelativePath(relativeAssetPath);
+  if (config.publicStorageOrigin) {
+    return `${config.publicStorageOrigin}${config.publicStoragePrefix}${normalizedRelativePath}`;
+  }
+
+  return `${config.publicStoragePrefix}${normalizedRelativePath}`;
 }
 
 export function getLessonFolderAbsolute(dayNumber, lessonNumber) {
