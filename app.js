@@ -456,9 +456,9 @@ function renderHome() {
       );
 
   view.innerHTML = `
-    <section class="screen-stack">
-      <section class="hero-panel">
-        <div class="section-title">
+    <section class="screen-stack screen-stack--home">
+      <section class="hero-panel hero-panel--home">
+        <div class="section-title section-title--home">
           <div>
             <p class="eyebrow">Главный раздел</p>
             <h2>${escapeHtml(dashboardData.brand?.title || academyCourse.title)}</h2>
@@ -466,7 +466,7 @@ function renderHome() {
           <span class="badge">${summary.overallPercentage}%</span>
         </div>
         <p class="muted">${escapeHtml(dashboardData.brand?.subtitle || academyCourse.description)}</p>
-        <div class="stats-strip">
+        <div class="stats-strip stats-strip--home">
           <article class="metric-card">
             <strong>${summary.totalLessons}</strong>
             <span>Уроков</span>
@@ -482,7 +482,7 @@ function renderHome() {
         </div>
       </section>
 
-      <section class="section section--compact">
+      <section class="section section--compact section--home-search">
         <label class="search" for="homeSearchInput">
           <input
             id="homeSearchInput"
@@ -493,15 +493,15 @@ function renderHome() {
         </label>
       </section>
 
-      <section class="section">
-        <div class="section-title">
+      <section class="section section--home-hub">
+        <div class="section-title section-title--home">
           <div>
             <p class="eyebrow">Навигация по блокам</p>
             <h3>Разделы академии</h3>
           </div>
           <span class="badge">4 блока</span>
         </div>
-        <div class="hub-grid">
+        <div class="hub-grid hub-grid--home">
           ${content}
         </div>
       </section>
