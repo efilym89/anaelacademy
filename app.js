@@ -103,6 +103,8 @@ let pendingToast = '';
 let viewportResizeBound = false;
 let telegramViewportEventsBound = false;
 let pendingRouteScrollReset = false;
+let videoPreviewObserver = null;
+const videoPreviewCache = new Map();
 const SEEK_TOLERANCE_SECONDS = 1.5;
 const uiState = {
   homeSearch: '',
@@ -1148,7 +1150,11 @@ function buildPresentationCard(lesson) {
   `;
 }
 
-function buildLessonCover(lesson, variant) {
+function getLessonPrimaryVideoSource(lesson) {
+  return getLessonVideoItems(lesson)[0]?.src || lesson.video?.src || '';
+}
+
+function buildLessonCoverLegacy(lesson, variant) {
   const accent = lesson.cover?.accent || 'bronze';
   const title = lesson.title || 'Урок';
   const badge = lesson.cover?.badge || `Урок ${lesson.order}`;
@@ -1175,6 +1181,98 @@ function buildLessonCover(lesson, variant) {
         <span class="cover-badge">${escapeHtml(badge)}</span>
         <strong>${escapeHtml(title)}</strong>
         <small>${escapeHtml(coverAccentLabels[accent] || 'Обложка')}</small>
+      </div>
+    </div>
+  `;
+}
+
+function buildLessonCoverFallback(lesson, variant) {
+  const accent = lesson.cover?.accent || 'bronze';
+  const title = lesson.title || 'РЈСЂРѕРє';
+  const badge = lesson.cover?.badge || `РЈСЂРѕРє ${lesson.order}`;
+  const alt = lesson.cover?.alt || `РћР±Р»РѕР¶РєР° СѓСЂРѕРєР° В«${title}В»`;
+  const previewSource = getLessonPrimaryVideoSource(lesson);
+  const fallbackVisual = lesson.cover?.src
+    ? `<img class="lesson-cover__fallback-image" src="${escapeHtml(lesson.cover.src)}" alt="${escapeHtml(alt)}" />`
+    : `
+      <div class="lesson-cover__art" aria-hidden="true">
+        <span>${escapeHtml(title.slice(0, 1))}</span>
+      </div>
+    `;
+  const previewImage = previewSource
+    ? '<img class="lesson-cover__preview-image" data-video-preview-image src="" alt="" aria-hidden="true" loading="lazy" />'
+    : '';
+
+  return `
+    <div
+      class="lesson-cover lesson-cover--${escapeHtml(variant)} lesson-cover--${escapeHtml(accent)} lesson-cover--preview"
+      ${previewSource ? `data-video-preview-src="${escapeHtml(previewSource)}"` : ''}
+    >
+      <div class="lesson-cover__visual">
+        ${fallbackVisual}
+        ${previewImage}
+      </div>
+      <div class="lesson-cover__overlay">
+        <span class="cover-badge">${escapeHtml(badge)}</span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(coverAccentLabels[accent] || 'РћР±Р»РѕР¶РєР°')}</small>
+      </div>
+    </div>
+  `;
+}
+
+function buildVideoPlaylistPreview(lesson, videoItem) {
+  const fallbackImage = lesson.cover?.src || '';
+  const fallbackVisual = fallbackImage
+    ? `<img class="video-playlist__fallback-image" src="${escapeHtml(fallbackImage)}" alt="" aria-hidden="true" />`
+    : `<span class="video-playlist__fallback-badge">${escapeHtml(String(videoItem.order).padStart(2, '0'))}</span>`;
+  const previewImage = videoItem.src
+    ? '<img class="video-playlist__preview-image" data-video-preview-image src="" alt="" aria-hidden="true" loading="lazy" />'
+    : '';
+
+  return `
+    <span
+      class="video-playlist__preview"
+      ${videoItem.src ? `data-video-preview-src="${escapeHtml(videoItem.src)}"` : ''}
+      aria-hidden="true"
+    >
+      ${fallbackVisual}
+      ${previewImage}
+      <span class="video-playlist__play-indicator"></span>
+    </span>
+  `;
+}
+
+function buildLessonCover(lesson, variant) {
+  const accent = lesson.cover?.accent || 'bronze';
+  const title = lesson.title || '\u0423\u0440\u043e\u043a';
+  const badge = lesson.cover?.badge || `\u0423\u0440\u043e\u043a ${lesson.order}`;
+  const alt = lesson.cover?.alt || `\u041e\u0431\u043b\u043e\u0436\u043a\u0430 \u0443\u0440\u043e\u043a\u0430 \u00ab${title}\u00bb`;
+  const previewSource = getLessonPrimaryVideoSource(lesson);
+  const fallbackVisual = lesson.cover?.src
+    ? `<img class="lesson-cover__fallback-image" src="${escapeHtml(lesson.cover.src)}" alt="${escapeHtml(alt)}" />`
+    : `
+      <div class="lesson-cover__art" aria-hidden="true">
+        <span>${escapeHtml(title.slice(0, 1))}</span>
+      </div>
+    `;
+  const previewImage = previewSource
+    ? '<img class="lesson-cover__preview-image" data-video-preview-image src="" alt="" aria-hidden="true" loading="lazy" />'
+    : '';
+
+  return `
+    <div
+      class="lesson-cover lesson-cover--${escapeHtml(variant)} lesson-cover--${escapeHtml(accent)} lesson-cover--preview"
+      ${previewSource ? `data-video-preview-src="${escapeHtml(previewSource)}"` : ''}
+    >
+      <div class="lesson-cover__visual">
+        ${fallbackVisual}
+        ${previewImage}
+      </div>
+      <div class="lesson-cover__overlay">
+        <span class="cover-badge">${escapeHtml(badge)}</span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(coverAccentLabels[accent] || '\u041e\u0431\u043b\u043e\u0436\u043a\u0430')}</small>
       </div>
     </div>
   `;
@@ -1354,6 +1452,8 @@ function bindNavigationActions(scope) {
       }
     });
   });
+
+  hydrateVideoPreviewElements(scope);
 }
 
 function bindFavoriteActions(scope) {
@@ -1382,6 +1482,183 @@ function openLessonFromDataset(lessonId) {
   }
 
   navigateToRoute({ tab: 'home', screen: 'lesson', lessonId });
+}
+
+function hydrateVideoPreviewElements(scope) {
+  const previewNodes = Array.from(scope.querySelectorAll('[data-video-preview-src]'));
+  videoPreviewObserver?.disconnect();
+  videoPreviewObserver = null;
+
+  if (previewNodes.length === 0) {
+    return;
+  }
+
+  if (!('IntersectionObserver' in window)) {
+    previewNodes.forEach((node) => {
+      requestVideoPreviewForElement(node);
+    });
+    return;
+  }
+
+  videoPreviewObserver = new IntersectionObserver(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        observer.unobserve(entry.target);
+        requestVideoPreviewForElement(entry.target);
+      });
+    },
+    {
+      rootMargin: '180px 0px'
+    }
+  );
+
+  previewNodes.forEach((node) => {
+    if (node instanceof HTMLVideoElement) {
+      requestVideoPreviewForElement(node);
+      return;
+    }
+
+    videoPreviewObserver.observe(node);
+  });
+}
+
+function requestVideoPreviewForElement(node) {
+  const previewSource = node.dataset.videoPreviewSrc?.trim();
+  if (!previewSource || node.dataset.videoPreviewState === 'loading' || node.dataset.videoPreviewState === 'ready') {
+    return;
+  }
+
+  const cachedPreview = videoPreviewCache.get(previewSource);
+  if (typeof cachedPreview === 'string' && cachedPreview) {
+    applyVideoPreview(node, cachedPreview);
+    return;
+  }
+
+  if (cachedPreview === null) {
+    node.dataset.videoPreviewState = 'failed';
+    return;
+  }
+
+  node.dataset.videoPreviewState = 'loading';
+  requestVideoPreview(previewSource).then((previewUrl) => {
+    if (!node.isConnected) {
+      return;
+    }
+
+    if (!previewUrl) {
+      node.dataset.videoPreviewState = 'failed';
+      return;
+    }
+
+    applyVideoPreview(node, previewUrl);
+  });
+}
+
+function requestVideoPreview(previewSource) {
+  const cachedPreview = videoPreviewCache.get(previewSource);
+  if (typeof cachedPreview === 'string' || cachedPreview === null) {
+    return Promise.resolve(cachedPreview);
+  }
+
+  if (cachedPreview) {
+    return cachedPreview;
+  }
+
+  const pendingPreview = extractVideoPreviewFrame(previewSource)
+    .then((previewUrl) => {
+      const resolvedPreview = previewUrl || null;
+      videoPreviewCache.set(previewSource, resolvedPreview);
+      return resolvedPreview;
+    })
+    .catch(() => {
+      videoPreviewCache.set(previewSource, null);
+      return null;
+    });
+
+  videoPreviewCache.set(previewSource, pendingPreview);
+  return pendingPreview;
+}
+
+function extractVideoPreviewFrame(previewSource) {
+  return new Promise((resolve) => {
+    const previewVideo = document.createElement('video');
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      window.clearTimeout(timeoutId);
+      previewVideo.pause();
+      previewVideo.removeAttribute('src');
+      previewVideo.load();
+      resolve(result);
+    };
+
+    const captureFrame = () => {
+      try {
+        const sourceWidth = previewVideo.videoWidth || 0;
+        const sourceHeight = previewVideo.videoHeight || 0;
+        if (!sourceWidth || !sourceHeight) {
+          finish(null);
+          return;
+        }
+
+        const targetWidth = Math.min(sourceWidth, 480);
+        const targetHeight = Math.max(1, Math.round((targetWidth / sourceWidth) * sourceHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+          finish(null);
+          return;
+        }
+
+        context.drawImage(previewVideo, 0, 0, targetWidth, targetHeight);
+        finish(canvas.toDataURL('image/jpeg', 0.76));
+      } catch {
+        finish(null);
+      }
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      finish(null);
+    }, 7000);
+
+    previewVideo.muted = true;
+    previewVideo.playsInline = true;
+    previewVideo.preload = 'metadata';
+    previewVideo.crossOrigin = 'anonymous';
+
+    previewVideo.addEventListener('loadeddata', captureFrame, { once: true });
+    previewVideo.addEventListener('error', () => finish(null), { once: true });
+
+    previewVideo.src = previewSource;
+    previewVideo.load();
+  });
+}
+
+function applyVideoPreview(node, previewUrl) {
+  node.dataset.videoPreviewState = 'ready';
+  node.classList.add('is-ready');
+
+  if (node instanceof HTMLVideoElement) {
+    node.poster = previewUrl;
+    return;
+  }
+
+  const previewImage = node.querySelector('[data-video-preview-image]');
+  if (previewImage) {
+    previewImage.src = previewUrl;
+  }
 }
 
 function getVideoItemProgress(lessonProgress, videoId) {
@@ -1524,10 +1801,13 @@ function buildVideoPanel(lesson, lessonProgress) {
               data-select-video="${escapeHtml(videoItem.id)}"
               ${disabled ? 'disabled' : ''}
             >
-              <span class="video-playlist__meta">
+              <span class="video-playlist__body">
+                ${buildVideoPlaylistPreview(lesson, videoItem)}
+                <span class="video-playlist__meta">
                 <span class="video-playlist__order">Видео ${videoItem.order}</span>
                 <strong>${escapeHtml(videoItem.title)}</strong>
                 <span class="muted">${escapeHtml(videoItem.durationLabel || 'Длительность уточняется')}</span>
+                </span>
               </span>
               ${renderStatusChip(status.label, status.type)}
             </button>
@@ -1542,11 +1822,13 @@ function buildVideoPanel(lesson, lessonProgress) {
             <video
               id="lessonVideo"
               data-video-id="${escapeHtml(activeVideo.id)}"
+              ${activeVideo.src ? `data-video-preview-src="${escapeHtml(activeVideo.src)}"` : ''}
               controls
               controlsList="nodownload noplaybackrate"
               disablepictureinpicture
               playsinline
               preload="metadata"
+              poster="${escapeHtml(lesson.cover?.src || '')}"
             >
               <source src="${escapeHtml(activeVideo.src)}" />
             </video>
