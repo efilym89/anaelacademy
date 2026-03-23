@@ -662,7 +662,7 @@ function renderLessonDetail(lessonId) {
 
       <section class="section lesson-detail">
         <div class="lesson-detail__media">
-          ${buildLessonCover(lesson, 'hero')}
+          ${buildGeneratedLessonCover(lesson, 'hero')}
           ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
         </div>
         <div class="lesson-detail__content">
@@ -1084,7 +1084,7 @@ function buildCourseLessonCard(lesson) {
       tabindex="0"
     >
       <div class="lesson-card__cover">
-        ${buildLessonCover(lesson, 'card')}
+        ${buildGeneratedLessonCover(lesson, 'card')}
         ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
       </div>
       <div class="lesson-card__body">
@@ -1115,7 +1115,7 @@ function buildPresentationCard(lesson) {
   return `
     <article class="lesson-card ${isAvailable ? '' : 'lesson-card--locked'}">
       <div class="lesson-card__cover">
-        ${buildLessonCover(lesson, 'card')}
+        ${buildGeneratedLessonCover(lesson, 'card')}
         ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
       </div>
       <div class="lesson-card__body">
@@ -1276,6 +1276,224 @@ function buildLessonCover(lesson, variant) {
       </div>
     </div>
   `;
+}
+
+const generatedLessonPreviewCache = new Map();
+const generatedLessonPreviewPalettes = {
+  bronze: {
+    base: '#141821',
+    glow: '#cb9d61',
+    accent: '#f2c98a',
+    secondary: '#8d633d',
+    chip: '#f5ddb5'
+  },
+  sand: {
+    base: '#19161b',
+    glow: '#d5b58a',
+    accent: '#f4e1c4',
+    secondary: '#8f6f52',
+    chip: '#f4dfbf'
+  },
+  olive: {
+    base: '#141a1a',
+    glow: '#7fa683',
+    accent: '#d8e6cb',
+    secondary: '#4d6e59',
+    chip: '#d7e7cd'
+  },
+  charcoal: {
+    base: '#141720',
+    glow: '#7d8da7',
+    accent: '#dde2eb',
+    secondary: '#485465',
+    chip: '#e2e7ef'
+  }
+};
+
+const generatedLessonThemePresets = [
+  { label: 'Продажи', keywords: ['продаж', 'цены', 'сделк', 'возраж', 'удержан', 'продукт'] },
+  { label: 'Клиент', keywords: ['клиент', 'контакт', 'потребност', 'встреч', 'консульт'] },
+  { label: 'Аппарат', keywords: ['аппарат', 'технолог', 'режим', 'параметр', 'настрой'] },
+  { label: 'Практика', keywords: ['процедур', 'зон', 'реакц', 'ошиб', 'мастер'] },
+  { label: 'Бренд', keywords: ['бренд', 'ценност', 'компан', 'стандарт'] },
+  { label: 'Старт', keywords: ['привет', 'ввод', 'итог', 'экзам', 'задание', 'подготов'] }
+];
+
+function buildGeneratedLessonCover(lesson, variant) {
+  const title = lesson.title || 'Урок';
+  const badge = lesson.cover?.badge || `Урок ${lesson.order}`;
+  const alt = lesson.cover?.alt || `Обложка урока «${title}»`;
+  const previewUrl = getGeneratedLessonPreviewDataUrl(lesson, { variant });
+
+  return `
+    <div class="lesson-cover lesson-cover--${escapeHtml(variant)} lesson-cover--image">
+      <img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(alt)}" />
+      <div class="lesson-cover__overlay">
+        <span class="cover-badge">${escapeHtml(badge)}</span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(resolveGeneratedLessonThemeLabel(lesson))}</small>
+      </div>
+    </div>
+  `;
+}
+
+function buildGeneratedVideoPlaylistPreview(lesson, videoItem) {
+  const previewUrl = getGeneratedLessonPreviewDataUrl(lesson, {
+    variant: 'playlist',
+    videoItem,
+    compact: true
+  });
+
+  return `
+    <span class="video-playlist__preview" aria-hidden="true">
+      <img class="video-playlist__preview-image" src="${escapeHtml(previewUrl)}" alt="" />
+      <span class="video-playlist__play-indicator"></span>
+    </span>
+  `;
+}
+
+function getGeneratedLessonPreviewDataUrl(lesson, options = {}) {
+  const key = [
+    options.variant || 'card',
+    options.compact ? 'compact' : 'regular',
+    lesson.id,
+    lesson.title || '',
+    lesson.shortDescription || '',
+    lesson.cover?.accent || '',
+    options.videoItem?.id || '',
+    options.videoItem?.title || ''
+  ].join('::');
+
+  if (generatedLessonPreviewCache.has(key)) {
+    return generatedLessonPreviewCache.get(key);
+  }
+
+  const previewUrl = createGeneratedLessonPreviewDataUrl(lesson, options);
+  generatedLessonPreviewCache.set(key, previewUrl);
+  return previewUrl;
+}
+
+function createGeneratedLessonPreviewDataUrl(lesson, options = {}) {
+  const compact = Boolean(options.compact);
+  const palette =
+    generatedLessonPreviewPalettes[lesson.cover?.accent || 'bronze'] || generatedLessonPreviewPalettes.bronze;
+  const title = (options.videoItem?.title || lesson.title || 'Урок').trim();
+  const subtitle = (lesson.shortDescription || lesson.description || '').trim();
+  const themeLabel = resolveGeneratedLessonThemeLabel(lesson);
+  const titleLines = splitGeneratedPreviewLines(title, compact ? 18 : 22, compact ? 2 : 3);
+  const subtitleLines = splitGeneratedPreviewLines(subtitle, compact ? 28 : 38, compact ? 1 : 2);
+  const titleFontSize = compact ? 38 : options.variant === 'hero' ? 58 : 50;
+  const subtitleFontSize = compact ? 18 : 22;
+  const chipFontSize = compact ? 18 : 20;
+  const titleMarkup = titleLines
+    .map(
+      (line, index) =>
+        `<tspan x="76" dy="${index === 0 ? 0 : Math.round(titleFontSize * 1.06)}">${escapeSvgContent(line)}</tspan>`
+    )
+    .join('');
+  const subtitleMarkup = subtitleLines
+    .map(
+      (line, index) =>
+        `<tspan x="76" dy="${index === 0 ? 0 : Math.round(subtitleFontSize * 1.24)}">${escapeSvgContent(line)}</tspan>`
+    )
+    .join('');
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="${escapeSvgContent(title)}">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${palette.base}" />
+          <stop offset="52%" stop-color="${palette.secondary}" />
+          <stop offset="100%" stop-color="${palette.base}" />
+        </linearGradient>
+        <radialGradient id="glowA" cx="22%" cy="18%" r="60%">
+          <stop offset="0%" stop-color="${palette.glow}" stop-opacity="0.58" />
+          <stop offset="100%" stop-color="${palette.glow}" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="glowB" cx="95%" cy="8%" r="60%">
+          <stop offset="0%" stop-color="${palette.accent}" stop-opacity="0.3" />
+          <stop offset="100%" stop-color="${palette.accent}" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="1200" height="675" rx="36" fill="url(#bg)" />
+      <rect x="18" y="18" width="1164" height="639" rx="30" fill="rgba(10,12,16,0.08)" stroke="rgba(255,255,255,0.08)" />
+      <circle cx="248" cy="124" r="296" fill="url(#glowA)" />
+      <circle cx="1040" cy="92" r="270" fill="url(#glowB)" />
+      <circle cx="1010" cy="590" r="210" fill="${palette.glow}" fill-opacity="0.1" />
+      <rect x="76" y="68" width="220" height="54" rx="27" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.16)" />
+      <text x="106" y="103" fill="${palette.chip}" font-size="${chipFontSize}" font-weight="700" font-family="Segoe UI, Arial, sans-serif" letter-spacing="1.2">${escapeSvgContent(
+        themeLabel.toUpperCase()
+      )}</text>
+      <rect x="918" y="68" width="206" height="54" rx="27" fill="rgba(7,10,14,0.22)" stroke="rgba(255,255,255,0.12)" />
+      <text x="950" y="103" fill="rgba(255,255,255,0.84)" font-size="${chipFontSize}" font-weight="600" font-family="Segoe UI, Arial, sans-serif">${escapeSvgContent(
+        `День ${lesson.dayNumber} • Урок ${lesson.lessonNumber}`
+      )}</text>
+      <text x="76" y="206" fill="rgba(255,255,255,0.96)" font-size="${titleFontSize}" font-weight="800" font-family="Segoe UI, Arial, sans-serif">${titleMarkup}</text>
+      <text x="76" y="${compact ? 402 : 448}" fill="rgba(247,241,232,0.8)" font-size="${subtitleFontSize}" font-weight="500" font-family="Segoe UI, Arial, sans-serif">${subtitleMarkup}</text>
+      <rect x="76" y="553" width="324" height="46" rx="23" fill="rgba(7,10,14,0.26)" stroke="rgba(255,255,255,0.12)" />
+      <text x="104" y="583" fill="rgba(255,255,255,0.78)" font-size="20" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Annaelle Academy</text>
+      <text x="76" y="633" fill="rgba(255,255,255,0.34)" font-size="18" font-weight="600" font-family="Segoe UI, Arial, sans-serif" letter-spacing="2.4">PREMIUM LEARNING</text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function resolveGeneratedLessonThemeLabel(lesson) {
+  const haystack = `${lesson.title || ''} ${lesson.shortDescription || ''} ${lesson.description || ''}`.toLowerCase();
+  const preset = generatedLessonThemePresets.find((item) =>
+    item.keywords.some((keyword) => haystack.includes(keyword))
+  );
+
+  return preset?.label || 'Академия';
+}
+
+function splitGeneratedPreviewLines(text, maxChars, maxLines) {
+  const normalized = String(text || '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+
+  if (!normalized) {
+    return ['Annaelle Academy'];
+  }
+
+  const words = normalized.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length <= maxChars) {
+      currentLine = candidate;
+      return;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    currentLine = word;
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  const limitedLines = lines.slice(0, maxLines);
+  if (lines.length > maxLines) {
+    const lastIndex = limitedLines.length - 1;
+    limitedLines[lastIndex] = `${limitedLines[lastIndex].slice(0, Math.max(0, maxChars - 1)).trimEnd()}…`;
+  }
+
+  return limitedLines;
+}
+
+function escapeSvgContent(value) {
+  return String(value)
+    .replace(/&/gu, '&amp;')
+    .replace(/</gu, '&lt;')
+    .replace(/>/gu, '&gt;')
+    .replace(/"/gu, '&quot;')
+    .replace(/'/gu, '&#39;');
 }
 
 function buildFinalExamTeaser(summary) {
@@ -1452,8 +1670,6 @@ function bindNavigationActions(scope) {
       }
     });
   });
-
-  hydrateVideoPreviewElements(scope);
 }
 
 function bindFavoriteActions(scope) {
@@ -1802,7 +2018,7 @@ function buildVideoPanel(lesson, lessonProgress) {
               ${disabled ? 'disabled' : ''}
             >
               <span class="video-playlist__body">
-                ${buildVideoPlaylistPreview(lesson, videoItem)}
+                ${buildGeneratedVideoPlaylistPreview(lesson, videoItem)}
                 <span class="video-playlist__meta">
                 <span class="video-playlist__order">Видео ${videoItem.order}</span>
                 <strong>${escapeHtml(videoItem.title)}</strong>
@@ -1822,13 +2038,17 @@ function buildVideoPanel(lesson, lessonProgress) {
             <video
               id="lessonVideo"
               data-video-id="${escapeHtml(activeVideo.id)}"
-              ${activeVideo.src ? `data-video-preview-src="${escapeHtml(activeVideo.src)}"` : ''}
               controls
               controlsList="nodownload noplaybackrate"
               disablepictureinpicture
               playsinline
               preload="metadata"
-              poster="${escapeHtml(lesson.cover?.src || '')}"
+              poster="${escapeHtml(
+                getGeneratedLessonPreviewDataUrl(lesson, {
+                  variant: 'player',
+                  videoItem: activeVideo
+                })
+              )}"
             >
               <source src="${escapeHtml(activeVideo.src)}" />
             </video>

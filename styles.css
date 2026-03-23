@@ -913,11 +913,6 @@ h3 {
 .video-playlist__preview-image {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-
-.video-playlist__preview.is-ready .video-playlist__preview-image {
   opacity: 1;
 }
 
