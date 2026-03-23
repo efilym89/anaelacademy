@@ -273,7 +273,7 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
     (storageState.videoFiles ?? []).map((file) => [file.name.toLowerCase(), file])
   );
   const defaultVideoFile = storageState.videoFiles?.[0] ?? null;
-  const lessonFolderRelative = getLessonFolderRelative(lesson.dayNumber, lesson.lessonNumber);
+  const lessonFolderRelative = path.posix.join(`day-${lesson.dayNumber}`, `lesson-${lesson.lessonNumber}`);
   const fallbackVideoRelativePath = path.posix.join(lessonFolderRelative, 'video.mp4');
 
   if (Array.isArray(metadata.videoSequence) && metadata.videoSequence.length > 0) {
