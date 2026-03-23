@@ -5,6 +5,7 @@ import { config } from '../config.js';
 const videoExtensions = new Set(['.mp4', '.m4v', '.mov', '.webm', '.mkv']);
 const presentationExtensions = new Set(['.pptx']);
 const imageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg', '.avif']);
+const preferredVideoExtensionOrder = ['.mp4', '.m4v', '.webm', '.mov', '.mkv'];
 
 export function ensureCourseStorageFolders(course) {
   course.lessons.forEach((lesson) => {
@@ -20,19 +21,17 @@ export function inspectLessonStorage(dayNumber, lessonNumber) {
   const entries = readdirSync(absoluteFolder, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .sort((left, right) => left.name.localeCompare(right.name, 'ru', { sensitivity: 'base' }));
-  const videoFiles = entries
+  const videoEntries = entries
     .filter((entry) => isVideoFile(entry.name))
+    .sort(compareVideoEntriesByPriority);
+  const videoFiles = videoEntries
     .map((entry) => ({
       name: entry.name,
       relativePath: normalizeRelativePath(
         path.posix.join(`day-${dayNumber}`, `lesson-${lessonNumber}`, entry.name)
       )
     }));
-  const videoEntry =
-    entries.find(
-      (entry) =>
-        isVideoFile(entry.name) && entry.name.toLowerCase().startsWith('video.')
-    ) ?? entries.find((entry) => videoExtensions.has(path.extname(entry.name).toLowerCase()));
+  const videoEntry = videoEntries[0] ?? null;
   const presentationEntry =
     entries.find((entry) => entry.name.toLowerCase() === 'presentation.pptx') ??
     entries.find((entry) => presentationExtensions.has(path.extname(entry.name).toLowerCase()));
@@ -101,4 +100,25 @@ function isVideoFile(fileName) {
 
 function isImageFile(fileName) {
   return imageExtensions.has(path.extname(fileName).toLowerCase());
+}
+
+function compareVideoEntriesByPriority(left, right) {
+  const extensionRank = getVideoExtensionPriority(path.extname(left.name)) - getVideoExtensionPriority(path.extname(right.name));
+  if (extensionRank !== 0) {
+    return extensionRank;
+  }
+
+  const isPreferredNameLeft = left.name.toLowerCase().startsWith('video.') ? -1 : 0;
+  const isPreferredNameRight = right.name.toLowerCase().startsWith('video.') ? -1 : 0;
+  if (isPreferredNameLeft !== isPreferredNameRight) {
+    return isPreferredNameLeft - isPreferredNameRight;
+  }
+
+  return left.name.localeCompare(right.name, 'ru', { sensitivity: 'base' });
+}
+
+function getVideoExtensionPriority(extension) {
+  const normalizedExtension = String(extension || '').toLowerCase();
+  const index = preferredVideoExtensionOrder.indexOf(normalizedExtension);
+  return index === -1 ? preferredVideoExtensionOrder.length : index;
 }
