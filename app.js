@@ -102,6 +102,7 @@ let progress = null;
 let pendingToast = '';
 let viewportResizeBound = false;
 let telegramViewportEventsBound = false;
+let pendingRouteScrollReset = false;
 const SEEK_TOLERANCE_SECONDS = 1.5;
 const PRESENTATION_PREVIEW_LOADING_TEXT = 'Готовим PDF-превью презентации...';
 const presentationPreviewState = new Map();
@@ -123,6 +124,7 @@ window.addEventListener('hashchange', () => {
     return;
   }
 
+  pendingRouteScrollReset = true;
   renderCurrentRoute();
 });
 
@@ -253,6 +255,7 @@ function navigateToTab(tab) {
 
 function navigateToRoute(route, options = {}) {
   const hash = buildRouteHash(route);
+  pendingRouteScrollReset = true;
 
   if (options.replace) {
     window.history.replaceState(null, '', hash);
@@ -444,10 +447,28 @@ function renderCurrentRoute() {
     renderHome();
   }
 
+  if (pendingRouteScrollReset) {
+    scrollViewportToTop();
+    pendingRouteScrollReset = false;
+  }
+
   if (pendingToast) {
     showToast(pendingToast);
     pendingToast = '';
   }
+}
+
+function scrollViewportToTop() {
+  const resetScroll = () => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    document.scrollingElement?.scrollTo?.(0, 0);
+    document.querySelector('.app-shell')?.scrollTo?.(0, 0);
+  };
+
+  resetScroll();
+  window.requestAnimationFrame(resetScroll);
 }
 
 function setActiveTab(active) {
@@ -642,6 +663,7 @@ function renderLessonDetail(lessonId) {
       <section class="section lesson-detail">
         <div class="lesson-detail__media">
           ${buildLessonCover(lesson, 'hero')}
+          ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
         </div>
         <div class="lesson-detail__content">
           <div class="section-title">
@@ -649,7 +671,6 @@ function renderLessonDetail(lessonId) {
               <p class="eyebrow">День ${lesson.dayNumber} · Урок ${lesson.lessonNumber}</p>
               <h2>${escapeHtml(lesson.title)}</h2>
             </div>
-            ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
           </div>
 
           <div class="status-row">
@@ -660,12 +681,6 @@ function renderLessonDetail(lessonId) {
           </div>
 
           <p class="lesson-detail__description">${escapeHtml(lesson.fullDescription || lesson.shortDescription || lesson.description)}</p>
-
-          <div class="objectives">
-            ${(lesson.objectives ?? [])
-              .map((objective) => `<div class="objective-pill">${escapeHtml(objective)}</div>`)
-              .join('')}
-          </div>
 
           <div class="notice ${
             status === 'completed' ? 'notice--success' : status === 'watched' ? 'notice--warning' : ''
@@ -686,18 +701,13 @@ function renderLessonDetail(lessonId) {
           </div>
         </div>
       </section>
-
-      <section class="section" id="presentationPanel"></section>
     </section>
   `;
 
   document.querySelector('#backToCourses')?.addEventListener('click', () => {
     navigateToRoute({ tab: 'home', screen: 'courses' });
   });
-
-  refreshPresentationPanel(lesson);
   bindNavigationActions(view);
-  bindPresentationActions(lesson);
 }
 
 function renderLessonPlayer(lessonId) {
@@ -1091,7 +1101,6 @@ function buildCourseLessonCard(lesson) {
         <div class="status-row">
           ${renderStatusChip(statusInfo.label, statusInfo.type)}
           ${renderStatusChip(testInfo.label, testInfo.type)}
-          ${lesson.speakerName ? renderStatusChip(lesson.speakerName, 'muted') : ''}
         </div>
         <p class="card-note">${escapeHtml(getLessonStatusDescription(lesson, lessonProgress))}</p>
       </div>

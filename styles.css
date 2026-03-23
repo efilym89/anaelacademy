@@ -772,6 +772,17 @@ h3 {
   gap: 18px;
 }
 
+.lesson-detail__media {
+  position: relative;
+}
+
+.lesson-detail__media .favorite-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
 .lesson-detail__content {
   display: grid;
   gap: 12px;
