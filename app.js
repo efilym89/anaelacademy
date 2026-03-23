@@ -645,6 +645,8 @@ function renderCourses() {
 }
 
 function renderLessonDetail(lessonId) {
+  renderLessonExperience(lessonId);
+  return;
   const lesson = getLessonById(academyCourse, lessonId);
   if (!lesson) {
     navigateToRoute({ tab: 'home', screen: 'courses' }, { replace: true });
@@ -711,6 +713,8 @@ function renderLessonDetail(lessonId) {
 }
 
 function renderLessonPlayer(lessonId) {
+  renderLessonExperience(lessonId);
+  return;
   const lesson = getLessonById(academyCourse, lessonId);
   if (!lesson) {
     navigateToRoute({ tab: 'home', screen: 'courses' }, { replace: true });
@@ -779,6 +783,229 @@ function renderLessonPlayer(lessonId) {
 
   bindNavigationActions(view);
   bindLessonVideoActions(lesson, lessonProgress);
+}
+
+function renderLessonExperience(lessonId) {
+  const lesson = getLessonById(academyCourse, lessonId);
+  if (!lesson) {
+    navigateToRoute({ tab: 'home', screen: 'courses' }, { replace: true });
+    return;
+  }
+
+  const lessonProgress = getLessonProgress(progress, lesson.id);
+  view.innerHTML = buildLessonExperienceMarkup(lesson, lessonProgress);
+
+  document.querySelector('#backToCoursesFromLesson')?.addEventListener('click', () => {
+    navigateToRoute({ tab: 'home', screen: 'courses' });
+  });
+
+  bindNavigationActions(view);
+  bindLessonVideoActions(lesson, lessonProgress);
+}
+
+function buildLessonExperienceMarkup(lesson, lessonProgress) {
+  return `
+    <section class="screen-stack screen-stack--lesson">
+      <button class="back-link" id="backToCoursesFromLesson" type="button">К списку уроков</button>
+      ${buildLessonHeroPanel(lesson, lessonProgress)}
+      ${buildLessonPlaybackSection(lesson, lessonProgress)}
+    </section>
+  `;
+}
+
+function buildLessonHeroPanel(lesson, lessonProgress) {
+  const status = getLessonStatus(academyCourse, progress, lesson.id);
+  const statusInfo = statusMeta[status];
+  const testInfo = testStatusMeta[getLessonTestStatus(progress, lesson.id)];
+  const videoItems = getLessonVideoItems(lesson);
+  const activeVideo = getActiveVideoItem(lesson, lessonProgress);
+  const activeVideoProgress = getVideoItemProgress(lessonProgress, activeVideo.id);
+  const summary = getVideoProgressSummary(lesson, lessonProgress);
+  const overallProgressPercent = Math.round(summary.watchRatio * 100);
+  const videoMeta = getVideoSourceMeta(activeVideo.src);
+  const playLabel = activeVideoProgress.completed ? 'Пересмотреть видео' : 'Смотреть видео';
+  const testLabel = lessonProgress.quizPassed ? 'Открыть тест' : 'Пройти тест';
+
+  return `
+    <section class="section lesson-hero-panel">
+      <div class="lesson-hero-panel__layout">
+        ${buildLessonHeroMedia(lesson, lessonProgress, activeVideo, videoMeta)}
+        <div class="lesson-hero-panel__content">
+          <div class="section-title section-title--lesson-hero">
+            <div>
+              <p class="eyebrow">День ${lesson.dayNumber} · Урок ${lesson.lessonNumber}</p>
+              <h2>${escapeHtml(lesson.title)}</h2>
+            </div>
+            <span class="badge">${escapeHtml(activeVideo.durationLabel || lesson.duration || '00:00')}</span>
+          </div>
+
+          <div class="status-row status-row--hero">
+            ${renderStatusChip(statusInfo.label, statusInfo.type)}
+            ${renderStatusChip(
+              lessonProgress.videoCompleted ? 'Видео просмотрено' : 'Видео не завершено',
+              lessonProgress.videoCompleted ? 'success' : 'muted'
+            )}
+            ${renderStatusChip(testInfo.label, testInfo.type)}
+            ${videoItems.length > 1 ? renderStatusChip(`Видео ${activeVideo.order} из ${videoItems.length}`, 'muted') : ''}
+          </div>
+
+          <p class="lesson-hero-panel__summary">${escapeHtml(lesson.shortDescription || lesson.description)}</p>
+
+          <div class="lesson-hero-panel__facts">
+            <article class="lesson-hero-panel__fact">
+              <small>Сейчас</small>
+              <strong>${escapeHtml(activeVideo.title)}</strong>
+            </article>
+            <article class="lesson-hero-panel__fact">
+              <small>Прогресс урока</small>
+              <strong>${overallProgressPercent}%</strong>
+            </article>
+            <article class="lesson-hero-panel__fact">
+              <small>Просмотрено</small>
+              <strong>${summary.completedCount}/${summary.totalCount}</strong>
+            </article>
+            <article class="lesson-hero-panel__fact">
+              <small>Следующий шаг</small>
+              <strong>${lessonProgress.videoCompleted ? (lessonProgress.quizPassed ? 'Урок завершен' : 'Пройти тест') : 'Досмотреть видео'}</strong>
+            </article>
+          </div>
+
+          <p class="lesson-hero-panel__hint">${escapeHtml(
+            getLessonPlaybackHint(lesson, lessonProgress, activeVideo, videoMeta)
+          )}</p>
+
+          <div class="detail-actions detail-actions--hero">
+            <button
+              class="button ${videoMeta.hasSource ? '' : 'button--disabled'}"
+              type="button"
+              data-play-lesson-video
+              ${videoMeta.hasSource ? '' : 'disabled'}
+            >
+              ${playLabel}
+            </button>
+            <button
+              class="button button--secondary ${lessonProgress.videoCompleted ? '' : 'button--disabled'}"
+              type="button"
+              data-open-test="${escapeHtml(lesson.id)}"
+              ${lessonProgress.videoCompleted ? '' : 'disabled'}
+            >
+              ${testLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function buildLessonHeroMedia(lesson, lessonProgress, activeVideo, videoMeta) {
+  const videoItems = getLessonVideoItems(lesson);
+  const activeVideoProgress = getVideoItemProgress(lessonProgress, activeVideo.id);
+  const posterUrl = getGeneratedLessonPreviewDataUrl(lesson, {
+    variant: 'player',
+    videoItem: activeVideo
+  });
+  const statusLabel = !videoMeta.hasSource
+    ? 'Без видео'
+    : activeVideoProgress.completed
+      ? 'Просмотрено'
+      : 'Готово';
+  const statusTone = !videoMeta.hasSource ? 'muted' : activeVideoProgress.completed ? 'success' : 'warning';
+  const videoOrderLabel = videoItems.length > 1 ? `Видео ${activeVideo.order}` : 'Урок';
+  const sourceType = videoMeta.mimeType ? ` type="${escapeHtml(videoMeta.mimeType)}"` : '';
+
+  return `
+    <div class="lesson-player-card" data-video-shell data-video-state="${videoMeta.hasSource ? 'idle' : 'missing'}">
+      <div class="lesson-player-card__media">
+        ${
+          videoMeta.hasSource
+            ? `
+              <video
+                id="lessonVideo"
+                class="lesson-player-card__video"
+                data-video-id="${escapeHtml(activeVideo.id)}"
+                controls
+                controlsList="nodownload noplaybackrate"
+                disablepictureinpicture
+                playsinline
+                webkit-playsinline="true"
+                preload="metadata"
+                poster="${escapeHtml(posterUrl)}"
+                aria-label="${escapeHtml(`Видео урока ${lesson.title}`)}"
+              >
+                <source src="${escapeHtml(activeVideo.src)}"${sourceType} />
+              </video>
+            `
+            : `
+              <img
+                class="lesson-player-card__poster"
+                src="${escapeHtml(posterUrl)}"
+                alt="${escapeHtml(`Превью урока ${lesson.title}`)}"
+              />
+              <div class="lesson-player-card__placeholder">
+                <span class="lesson-player-card__play-icon" aria-hidden="true"></span>
+                <strong>Видео пока недоступно</strong>
+                <p>${escapeHtml(
+                  activeVideo.placeholderNote || 'Как только файл будет подключен, урок запустится прямо в этом блоке.'
+                )}</p>
+              </div>
+            `
+        }
+
+        <div class="lesson-player-card__topbar">
+          <span class="cover-badge">${escapeHtml(videoOrderLabel)}</span>
+          <div class="lesson-player-card__actions">
+            <span class="lesson-player-card__pill lesson-player-card__pill--${statusTone}">${escapeHtml(statusLabel)}</span>
+            ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
+          </div>
+        </div>
+
+        <div class="lesson-player-card__feedback" data-video-feedback hidden>
+          <strong data-video-feedback-title></strong>
+          <p data-video-feedback-text></p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getLessonPlaybackHint(lesson, lessonProgress, activeVideo, videoMeta) {
+  if (!videoMeta.hasSource) {
+    return activeVideo.placeholderNote || 'Видео-файл пока не подключен. Остальные материалы урока при этом доступны.';
+  }
+
+  if (lessonProgress.quizPassed) {
+    return 'Урок уже завершен. Видео можно пересматривать прямо здесь, статус прохождения сохранен.';
+  }
+
+  if (lessonProgress.videoCompleted) {
+    return 'Видео уже засчитано. Теперь можно спокойно открыть тест или пересмотреть урок еще раз.';
+  }
+
+  return 'Видео запускается прямо в этом блоке. После полного просмотра автоматически откроется доступ к тесту.';
+}
+
+function getVideoSourceMeta(videoSrc) {
+  const normalizedSrc = String(videoSrc || '').trim();
+  const extensionMatch = /\.([a-z0-9]+)(?:$|[?#])/iu.exec(normalizedSrc.toLowerCase());
+  const extension = extensionMatch ? `.${extensionMatch[1]}` : '';
+  const mimeTypes = {
+    '.m3u8': 'application/vnd.apple.mpegurl',
+    '.m4v': 'video/mp4',
+    '.mkv': 'video/x-matroska',
+    '.mov': 'video/quicktime',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm'
+  };
+
+  return {
+    src: normalizedSrc,
+    extension,
+    mimeType: mimeTypes[extension] || '',
+    hasSource: Boolean(normalizedSrc),
+    isHls: extension === '.m3u8',
+    isLimitedInWebView: extension === '.mkv' || extension === '.mov'
+  };
 }
 
 function renderLessonTest(lessonId) {
@@ -1375,6 +1602,7 @@ function getGeneratedLessonPreviewDataUrl(lesson, options = {}) {
 
 function createGeneratedLessonPreviewDataUrl(lesson, options = {}) {
   const compact = Boolean(options.compact);
+  const playerVariant = options.variant === 'player';
   const palette =
     generatedLessonPreviewPalettes[lesson.cover?.accent || 'bronze'] || generatedLessonPreviewPalettes.bronze;
   const title = (options.videoItem?.title || lesson.title || 'Урок').trim();
@@ -1397,6 +1625,49 @@ function createGeneratedLessonPreviewDataUrl(lesson, options = {}) {
         `<tspan x="76" dy="${index === 0 ? 0 : Math.round(subtitleFontSize * 1.24)}">${escapeSvgContent(line)}</tspan>`
     )
     .join('');
+
+  if (playerVariant) {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="${escapeSvgContent(title)}">
+        <defs>
+          <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="${palette.base}" />
+            <stop offset="56%" stop-color="${palette.secondary}" />
+            <stop offset="100%" stop-color="${palette.base}" />
+          </linearGradient>
+          <radialGradient id="glowA" cx="22%" cy="18%" r="60%">
+            <stop offset="0%" stop-color="${palette.glow}" stop-opacity="0.62" />
+            <stop offset="100%" stop-color="${palette.glow}" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="glowB" cx="82%" cy="18%" r="54%">
+            <stop offset="0%" stop-color="${palette.accent}" stop-opacity="0.32" />
+            <stop offset="100%" stop-color="${palette.accent}" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="1200" height="675" rx="36" fill="url(#bg)" />
+        <rect x="18" y="18" width="1164" height="639" rx="30" fill="rgba(10,12,16,0.08)" stroke="rgba(255,255,255,0.08)" />
+        <circle cx="248" cy="124" r="296" fill="url(#glowA)" />
+        <circle cx="972" cy="112" r="256" fill="url(#glowB)" />
+        <rect x="76" y="68" width="220" height="54" rx="27" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.16)" />
+        <text x="106" y="103" fill="${palette.chip}" font-size="20" font-weight="700" font-family="Segoe UI, Arial, sans-serif" letter-spacing="1.2">${escapeSvgContent(
+          themeLabel.toUpperCase()
+        )}</text>
+        <rect x="904" y="68" width="220" height="54" rx="27" fill="rgba(7,10,14,0.22)" stroke="rgba(255,255,255,0.12)" />
+        <text x="938" y="103" fill="rgba(255,255,255,0.84)" font-size="20" font-weight="600" font-family="Segoe UI, Arial, sans-serif">${escapeSvgContent(
+          `День ${lesson.dayNumber} • Урок ${lesson.lessonNumber}`
+        )}</text>
+        <circle cx="600" cy="340" r="92" fill="rgba(11,13,17,0.42)" stroke="rgba(255,255,255,0.14)" />
+        <polygon points="572,289 572,391 656,340" fill="rgba(255,255,255,0.92)" />
+        <rect x="76" y="521" width="430" height="58" rx="29" fill="rgba(7,10,14,0.26)" stroke="rgba(255,255,255,0.12)" />
+        <text x="108" y="558" fill="rgba(255,255,255,0.88)" font-size="26" font-weight="700" font-family="Segoe UI, Arial, sans-serif">${escapeSvgContent(
+          title.slice(0, 34)
+        )}</text>
+        <text x="76" y="623" fill="rgba(255,255,255,0.38)" font-size="20" font-weight="600" font-family="Segoe UI, Arial, sans-serif" letter-spacing="2.2">ANNAELLE ACADEMY</text>
+      </svg>
+    `;
+
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="${escapeSvgContent(title)}">
@@ -1967,6 +2238,88 @@ function getVideoProgressSummary(lesson, lessonProgress, overrides = {}) {
   };
 }
 
+function buildLessonPlaybackSection(lesson, lessonProgress) {
+  const videoItems = getLessonVideoItems(lesson);
+  const activeVideo = getActiveVideoItem(lesson, lessonProgress);
+  const activeVideoProgress = getVideoItemProgress(lessonProgress, activeVideo.id);
+  const summary = getVideoProgressSummary(lesson, lessonProgress);
+  const overallProgressPercent = Math.round(summary.watchRatio * 100);
+  const activeProgressPercent = Math.round(activeVideoProgress.watchRatio * 100);
+  const thresholdPercent = Math.round((activeVideo.completionThreshold ?? 1) * 100);
+  const seekProtectionNotice = buildVideoSeekProtectionNotice(activeVideoProgress);
+  const videoFormatNotice = buildVideoFormatNotice(activeVideo.src);
+
+  return `
+    <section class="section lesson-playback-section" id="videoPanel">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">Видеоматериалы</p>
+          <h3>Видео идут по порядку урока</h3>
+        </div>
+        <span class="badge">${overallProgressPercent}%</span>
+      </div>
+
+      <div class="video-playlist" role="tablist" aria-label="Последовательность видео урока">
+        ${videoItems
+          .map((videoItem) => {
+            const status = getVideoItemStatus(videoItems, lessonProgress, videoItem);
+            const isActive = videoItem.id === activeVideo.id;
+            const disabled = status.state === 'locked';
+
+            return `
+              <button
+                class="video-playlist__item ${isActive ? 'video-playlist__item--active' : ''} ${
+                  status.state === 'completed' ? 'video-playlist__item--completed' : ''
+                } ${status.state === 'locked' ? 'video-playlist__item--locked' : ''}"
+                type="button"
+                data-select-video="${escapeHtml(videoItem.id)}"
+                ${disabled ? 'disabled' : ''}
+              >
+                <span class="video-playlist__body">
+                  ${buildGeneratedVideoPlaylistPreview(lesson, videoItem)}
+                  <span class="video-playlist__meta">
+                    <span class="video-playlist__order">Видео ${videoItem.order}</span>
+                    <strong>${escapeHtml(videoItem.title)}</strong>
+                    <span class="muted">${escapeHtml(videoItem.durationLabel || 'Длительность уточняется')}</span>
+                  </span>
+                </span>
+                ${renderStatusChip(status.label, status.type)}
+              </button>
+            `;
+          })
+          .join('')}
+      </div>
+
+      <div class="video-progress-stack">
+        <div class="video-progress-line">
+          <span class="video-progress-line__label">Текущее видео</span>
+          <div class="inline-progress">
+            <div class="progress progress--thin">
+              <span id="videoProgressFill" style="width: ${activeProgressPercent}%"></span>
+            </div>
+            <span class="progress-caption" id="videoProgressCaption">${activeProgressPercent}%</span>
+          </div>
+        </div>
+        <div class="video-progress-line">
+          <span class="video-progress-line__label">Общий прогресс блока</span>
+          <div class="inline-progress">
+            <div class="progress progress--thin">
+              <span id="videoOverallProgressFill" style="width: ${overallProgressPercent}%"></span>
+            </div>
+            <span class="progress-caption" id="videoOverallProgressCaption">${overallProgressPercent}%</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="muted">
+        Видео считается завершенным после ${thresholdPercent}% воспроизведения. Перемотка вперед открывается только в пределах уже просмотренного фрагмента.
+      </p>
+      ${seekProtectionNotice}
+      ${videoFormatNotice}
+    </section>
+  `;
+}
+
 function buildVideoPanel(lesson, lessonProgress) {
   const videoItems = getLessonVideoItems(lesson);
   const activeVideo = getActiveVideoItem(lesson, lessonProgress);
@@ -2111,6 +2464,23 @@ function buildVideoSeekProtectionNotice(videoProgress) {
 }
 
 function buildVideoFormatNotice(videoSrc) {
+  const videoMeta = getVideoSourceMeta(videoSrc);
+  if (videoMeta.isHls) {
+    return `
+      <div class="notice notice--soft">
+        Поток HLS будет воспроизводиться только в webview с нативной поддержкой HLS. Если видео не стартует, подготовьте MP4-версию для полной совместимости.
+      </div>
+    `;
+  }
+
+  if (videoMeta.isLimitedInWebView) {
+    return `
+      <div class="notice notice--warning">
+        Формат ${escapeHtml(videoMeta.extension.toUpperCase())} может не воспроизводиться в Telegram WebView и на iPhone. Для стабильного inline-плеера предпочтителен MP4.
+      </div>
+    `;
+  }
+
   if (!videoSrc) {
     return '';
   }
@@ -2198,6 +2568,24 @@ function bindLessonVideoActions(lesson, lessonProgress) {
     });
   }
 
+  const playButton = document.querySelector('[data-play-lesson-video]');
+  if (playButton) {
+    playButton.addEventListener('click', async () => {
+      const inlineVideo = document.querySelector('#lessonVideo');
+      if (!inlineVideo) {
+        showToast('Видео пока недоступно в этом уроке.');
+        return;
+      }
+
+      inlineVideo.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      try {
+        await inlineVideo.play();
+      } catch {
+        showToast('Если воспроизведение не стартовало автоматически, нажмите play на самом плеере.');
+      }
+    });
+  }
+
   const video = document.querySelector('#lessonVideo');
   if (!video) {
     return;
@@ -2207,11 +2595,45 @@ function bindLessonVideoActions(lesson, lessonProgress) {
   const activeVideo =
     getLessonVideoItems(lesson).find((item) => item.id === videoId) ?? getActiveVideoItem(lesson, lessonProgress);
   const activeVideoProgress = getVideoItemProgress(lessonProgress, activeVideo.id);
+  const videoMeta = getVideoSourceMeta(activeVideo.src);
+  const videoShell = document.querySelector('[data-video-shell]');
+  const feedback = document.querySelector('[data-video-feedback]');
+  const feedbackTitle = feedback?.querySelector('[data-video-feedback-title]');
+  const feedbackText = feedback?.querySelector('[data-video-feedback-text]');
   let lastPersistedBucket = Math.floor(activeVideoProgress.watchRatio * 20);
   let isCorrectingSeek = false;
   let lastSeekWarningAt = 0;
   let lastRateWarningAt = 0;
   const completionThreshold = activeVideo.completionThreshold ?? 1;
+
+  const setVideoShellState = (state, options = {}) => {
+    if (videoShell) {
+      videoShell.dataset.videoState = state;
+    }
+
+    if (!feedback || !feedbackTitle || !feedbackText) {
+      return;
+    }
+
+    if (state === 'error') {
+      feedback.hidden = false;
+      feedbackTitle.textContent = options.title || 'Не удалось открыть видео';
+      feedbackText.textContent =
+        options.message || 'Источник недоступен или не поддерживается текущим webview.';
+      return;
+    }
+
+    if (state === 'loading') {
+      feedback.hidden = false;
+      feedbackTitle.textContent = 'Подготавливаем видео';
+      feedbackText.textContent = 'Плеер загрузится прямо в этом блоке.';
+      return;
+    }
+
+    feedback.hidden = true;
+    feedbackTitle.textContent = '';
+    feedbackText.textContent = '';
+  };
 
   const enforcePlaybackRate = () => {
     if (video.playbackRate === 1) {
@@ -2226,6 +2648,14 @@ function bindLessonVideoActions(lesson, lessonProgress) {
       showToast('Ускорение воспроизведения отключено для этого урока.');
     }
   };
+
+  if (videoMeta.isHls && !video.canPlayType(videoMeta.mimeType)) {
+    setVideoShellState('error', {
+      title: 'HLS не поддерживается',
+      message: 'Этот поток не открывается в текущем webview. Для надежного просмотра подготовьте MP4-версию.'
+    });
+    return;
+  }
 
   const persistVideoProgress = () => {
     if (!video.duration || isCorrectingSeek) {
@@ -2302,7 +2732,27 @@ function bindLessonVideoActions(lesson, lessonProgress) {
 
   video.defaultPlaybackRate = 1;
   video.playbackRate = 1;
+  setVideoShellState('loading');
   video.addEventListener('ratechange', enforcePlaybackRate);
+  video.addEventListener('loadstart', () => {
+    setVideoShellState('loading');
+  });
+  video.addEventListener('waiting', () => {
+    setVideoShellState('loading');
+  });
+  video.addEventListener('canplay', () => {
+    setVideoShellState('ready');
+  });
+  video.addEventListener('playing', () => {
+    setVideoShellState('playing');
+  });
+  video.addEventListener('pause', () => {
+    if (video.ended) {
+      return;
+    }
+
+    setVideoShellState('ready');
+  });
 
   video.addEventListener('loadedmetadata', () => {
     const currentLessonProgress = progress.lessons[lesson.id];
@@ -2347,6 +2797,13 @@ function bindLessonVideoActions(lesson, lessonProgress) {
   video.addEventListener('timeupdate', persistVideoProgress);
   video.addEventListener('ended', persistVideoProgress);
   video.addEventListener('error', () => {
+    const extensionLabel = videoMeta.extension ? videoMeta.extension.toUpperCase() : 'VIDEO';
+    setVideoShellState('error', {
+      title: 'Не удалось открыть видео',
+      message: videoMeta.isLimitedInWebView
+        ? `Формат ${extensionLabel} может не поддерживаться этим webview. Для стабильного воспроизведения подготовьте MP4.`
+        : 'Источник недоступен или текущий формат не поддерживается устройством.'
+    });
     showToast('Не удалось воспроизвести видео. Для надежности используйте MP4.');
   });
 }

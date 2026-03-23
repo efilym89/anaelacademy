@@ -190,6 +190,127 @@ export function getBootstrapPayload() {
   };
 }
 
+export function createStaticBootstrapPayload() {
+  const course = clonePlain(fallbackCourse);
+  course.lessons = course.lessons.map((lesson) => {
+    const storageState = inspectLessonStorage(lesson.dayNumber, lesson.lessonNumber);
+    const storageMetadata = normalizeMetadata(storageState.metadata);
+    const objectives = storageMetadata.objectives?.length ? storageMetadata.objectives : lesson.objectives;
+    const shortDescription =
+      storageMetadata.shortDescription ?? storageMetadata.description ?? lesson.shortDescription ?? lesson.description ?? '';
+    const fullDescription =
+      storageMetadata.fullDescription ?? lesson.fullDescription ?? buildFullDescription(shortDescription, objectives);
+    const videoSequence = resolveStaticLessonVideoSequence(lesson, storageState, storageMetadata);
+    const primaryVideo = videoSequence[0] ?? null;
+    const coverRelativePath = storageState.coverPath
+      ? path.posix.join('storage', storageState.coverPath)
+      : lesson.cover?.relativePath ?? '';
+    const presentationRelativePath = storageState.presentationPath
+      ? path.posix.join('storage', storageState.presentationPath)
+      : lesson.presentation?.relativePath ?? '';
+
+    return {
+      ...lesson,
+      title: storageMetadata.title ?? lesson.title,
+      description: shortDescription,
+      shortDescription,
+      fullDescription,
+      speakerName: storageMetadata.speakerName ?? lesson.speakerName ?? 'Команда Annaelle Academy',
+      objectives,
+      duration: storageMetadata.durationLabel ?? primaryVideo?.durationLabel ?? lesson.duration ?? '00:00',
+      durationSeconds:
+        storageMetadata.videoDurationSeconds ?? primaryVideo?.durationSeconds ?? lesson.durationSeconds ?? null,
+      status: storageMetadata.status ?? lesson.status,
+      storage: {
+        provider: 'static',
+        folder: getLessonFolderRelative(lesson.dayNumber, lesson.lessonNumber)
+      },
+      cover: {
+        ...(lesson.cover ?? {}),
+        src: toPublicStorageUrl(storageState.coverPath),
+        relativePath: coverRelativePath,
+        alt: storageMetadata.coverAlt ?? lesson.cover?.alt ?? `Обложка урока «${lesson.title}»`
+      },
+      video: {
+        ...(lesson.video ?? {}),
+        src: primaryVideo?.src ?? toPublicStorageUrl(storageState.videoPath),
+        relativePath: primaryVideo?.relativePath ?? videoRelativePathFromLesson(storageState.videoPath),
+        completionThreshold: primaryVideo?.completionThreshold ?? lesson.video?.completionThreshold ?? 1,
+        placeholderNote:
+          primaryVideo?.placeholderNote ?? storageMetadata.placeholderNote ?? lesson.video?.placeholderNote ?? '',
+        durationSeconds:
+          primaryVideo?.durationSeconds ?? storageMetadata.videoDurationSeconds ?? lesson.durationSeconds ?? null,
+        sequence: videoSequence
+      },
+      presentation: {
+        ...(lesson.presentation ?? {}),
+        href: toPublicStorageUrl(storageState.presentationPath),
+        relativePath: presentationRelativePath,
+        fileName: storageState.presentationPath
+          ? path.posix.basename(storageState.presentationPath)
+          : lesson.presentation?.fileName ?? '',
+        previewEndpoint: ''
+      }
+    };
+  });
+
+  course.meta = {
+    ...(course.meta ?? {}),
+    source: 'static-bootstrap',
+    database: 'none',
+    storageProvider: 'static-storage',
+    brand: 'Annaelle Laser Academy'
+  };
+
+  return {
+    dashboard: clonePlain(dashboardData),
+    course
+  };
+}
+
+function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
+  const availableVideoFiles = new Map(
+    (storageState.videoFiles ?? []).map((file) => [file.name.toLowerCase(), file])
+  );
+  const defaultVideoFile = storageState.videoFiles?.[0] ?? null;
+
+  if (Array.isArray(metadata.videoSequence) && metadata.videoSequence.length > 0) {
+    return metadata.videoSequence.map((entry, index) => {
+      const fileReference = typeof entry.file === 'string' ? entry.file.trim() : '';
+      const resolvedFile =
+        availableVideoFiles.get(fileReference.toLowerCase()) ?? (!fileReference && index === 0 ? defaultVideoFile : null);
+      const durationSeconds = entry.videoDurationSeconds ?? lesson.durationSeconds ?? null;
+
+      return {
+        id: entry.id || `${lesson.id}-video-${index + 1}`,
+        order: index + 1,
+        title: entry.title || `Видео ${index + 1}`,
+        src: resolvedFile ? toPublicStorageUrl(resolvedFile.relativePath) : '',
+        relativePath: resolvedFile ? path.posix.join('storage', resolvedFile.relativePath) : '',
+        completionThreshold: clampCompletionThreshold(entry.completionThreshold ?? lesson.video?.completionThreshold),
+        placeholderNote: entry.placeholderNote || lesson.video?.placeholderNote || '',
+        durationSeconds,
+        durationLabel: entry.durationLabel || formatDuration(durationSeconds) || lesson.duration || ''
+      };
+    });
+  }
+
+  return [
+    {
+      id: `${lesson.id}-video-1`,
+      order: 1,
+      title: 'Видео 1',
+      src: defaultVideoFile ? toPublicStorageUrl(defaultVideoFile.relativePath) : lesson.video?.src ?? '',
+      relativePath: defaultVideoFile ? path.posix.join('storage', defaultVideoFile.relativePath) : lesson.video?.relativePath ?? '',
+      completionThreshold: clampCompletionThreshold(lesson.video?.completionThreshold),
+      placeholderNote: metadata.placeholderNote || lesson.video?.placeholderNote || '',
+      durationSeconds: metadata.videoDurationSeconds ?? lesson.durationSeconds ?? null,
+      durationLabel:
+        metadata.durationLabel || formatDuration(metadata.videoDurationSeconds ?? lesson.durationSeconds) || lesson.duration || ''
+    }
+  ];
+}
+
 function normalizeMetadata(metadata) {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
     return {};

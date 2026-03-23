@@ -1,6 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createStaticBootstrapPayload } from '../server/services/course-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -34,6 +35,9 @@ staticEntries.forEach((entry) => {
     recursive: true
   });
 });
+
+const staticBootstrapPayload = createStaticBootstrapPayload();
+writeFileSync(path.join(outDir, 'bootstrap-course.json'), `${JSON.stringify(staticBootstrapPayload, null, 2)}\n`, 'utf8');
 
 const indexHtml = readFileSync(path.join(rootDir, 'index.html'), 'utf8');
 writeFileSync(path.join(outDir, '404.html'), indexHtml, 'utf8');

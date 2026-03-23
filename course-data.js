@@ -30,39 +30,52 @@ export const academyCourse = {
 };
 
 export async function hydrateCourseData() {
-  const apiUrl = new URL('./api/bootstrap', import.meta.url);
-
-  try {
-    const response = await fetch(apiUrl, {
-      headers: {
-        Accept: 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Bootstrap request failed with status ${response.status}`);
-    }
-
-    const payload = await response.json();
-    replaceObject(dashboardData, payload.dashboard);
-    replaceObject(academyCourse, payload.course);
-
-    return {
+  const bootstrapSources = [
+    {
       source: 'api',
-      course: academyCourse,
-      dashboard: dashboardData
-    };
-  } catch (_) {
-    const payload = createStaticFallbackPayload();
-    replaceObject(dashboardData, payload.dashboard);
-    replaceObject(academyCourse, payload.course);
+      url: new URL('./api/bootstrap', import.meta.url)
+    },
+    {
+      source: 'static-bootstrap',
+      url: new URL('./bootstrap-course.json', import.meta.url)
+    }
+  ];
 
-    return {
-      source: 'static-fallback',
-      course: academyCourse,
-      dashboard: dashboardData
-    };
+  for (const bootstrapSource of bootstrapSources) {
+    try {
+      const response = await fetch(bootstrapSource.url, {
+        headers: {
+          Accept: 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Bootstrap request failed with status ${response.status}`);
+      }
+
+      const payload = await response.json();
+      replaceObject(dashboardData, payload.dashboard);
+      replaceObject(academyCourse, payload.course);
+
+      return {
+        source: bootstrapSource.source,
+        course: academyCourse,
+        dashboard: dashboardData
+      };
+    } catch (_) {
+      // Try the next source.
+    }
   }
+
+  const payload = createStaticFallbackPayload();
+  replaceObject(dashboardData, payload.dashboard);
+  replaceObject(academyCourse, payload.course);
+
+  return {
+    source: 'static-fallback',
+    course: academyCourse,
+    dashboard: dashboardData
+  };
 }
 
 function createStaticFallbackPayload() {
