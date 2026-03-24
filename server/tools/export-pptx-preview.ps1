@@ -9,7 +9,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $resolvedSourcePath = (Resolve-Path -LiteralPath $SourcePath).Path
-$outputDirectory = Split-Path -Parent $OutputPath
+$resolvedOutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+$outputDirectory = Split-Path -Parent $resolvedOutputPath
 
 if (-not (Test-Path -LiteralPath $outputDirectory)) {
   New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
@@ -24,7 +25,7 @@ try {
 
   $presentation = $powerPoint.Presentations.Open($resolvedSourcePath, $true, $false, $false)
   $ppSaveAsPDF = 32
-  $presentation.SaveAs($OutputPath, $ppSaveAsPDF)
+  $presentation.SaveAs($resolvedOutputPath, $ppSaveAsPDF)
 }
 finally {
   if ($presentation) {

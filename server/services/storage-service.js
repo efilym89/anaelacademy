@@ -3,7 +3,8 @@ import path from 'node:path';
 import { config } from '../config.js';
 
 const videoExtensions = new Set(['.mp4', '.m4v', '.mov', '.webm', '.mkv']);
-const presentationExtensions = new Set(['.pptx']);
+const presentationSourceExtensions = new Set(['.pptx']);
+const presentationDocumentExtensions = new Set(['.pdf']);
 const imageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg', '.avif']);
 const preferredVideoExtensionOrder = ['.mp4', '.m4v', '.webm', '.mov', '.mkv'];
 
@@ -32,9 +33,12 @@ export function inspectLessonStorage(dayNumber, lessonNumber) {
       )
     }));
   const videoEntry = videoEntries[0] ?? null;
-  const presentationEntry =
+  const presentationSourceEntry =
     entries.find((entry) => entry.name.toLowerCase() === 'presentation.pptx') ??
-    entries.find((entry) => presentationExtensions.has(path.extname(entry.name).toLowerCase()));
+    entries.find((entry) => presentationSourceExtensions.has(path.extname(entry.name).toLowerCase()));
+  const presentationPdfEntry =
+    entries.find((entry) => entry.name.toLowerCase() === 'presentation.pdf') ??
+    entries.find((entry) => presentationDocumentExtensions.has(path.extname(entry.name).toLowerCase()));
   const coverEntry =
     entries.find(
       (entry) => isImageFile(entry.name) && entry.name.toLowerCase().startsWith('cover.')
@@ -48,8 +52,14 @@ export function inspectLessonStorage(dayNumber, lessonNumber) {
     videoPath: videoEntry
       ? normalizeRelativePath(path.posix.join(`day-${dayNumber}`, `lesson-${lessonNumber}`, videoEntry.name))
       : null,
-    presentationPath: presentationEntry
-      ? normalizeRelativePath(path.posix.join(`day-${dayNumber}`, `lesson-${lessonNumber}`, presentationEntry.name))
+    presentationPath: presentationSourceEntry
+      ? normalizeRelativePath(path.posix.join(`day-${dayNumber}`, `lesson-${lessonNumber}`, presentationSourceEntry.name))
+      : null,
+    presentationSourcePath: presentationSourceEntry
+      ? normalizeRelativePath(path.posix.join(`day-${dayNumber}`, `lesson-${lessonNumber}`, presentationSourceEntry.name))
+      : null,
+    presentationPdfPath: presentationPdfEntry
+      ? normalizeRelativePath(path.posix.join(`day-${dayNumber}`, `lesson-${lessonNumber}`, presentationPdfEntry.name))
       : null,
     coverPath: coverEntry
       ? normalizeRelativePath(path.posix.join(`day-${dayNumber}`, `lesson-${lessonNumber}`, coverEntry.name))

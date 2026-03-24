@@ -54,7 +54,7 @@ export function syncStorageWithDatabase() {
       speakerName: metadata.speakerName,
       objectivesJson: metadata.objectives ? JSON.stringify(metadata.objectives) : null,
       videoPath: storageState.videoPath,
-      presentationPath: storageState.presentationPath,
+      presentationPath: storageState.presentationSourcePath ?? storageState.presentationPath,
       coverImagePath: storageState.coverPath,
       coverAlt: metadata.coverAlt,
       videoDurationSeconds: metadata.videoDurationSeconds,
@@ -67,8 +67,8 @@ export function syncStorageWithDatabase() {
       lessonId: lesson.id,
       folder: storageState.folderRelative,
       videoPath: storageState.videoPath ? path.posix.join('storage', storageState.videoPath) : '',
-      presentationPath: storageState.presentationPath
-        ? path.posix.join('storage', storageState.presentationPath)
+      presentationPath: (storageState.presentationSourcePath ?? storageState.presentationPath)
+        ? path.posix.join('storage', storageState.presentationSourcePath ?? storageState.presentationPath)
         : ''
     };
   });
@@ -102,8 +102,9 @@ export function getBootstrapPayload() {
     const storageState = inspectLessonStorage(lesson.day_number, lesson.lesson_number);
     const storageMetadata = normalizeMetadata(storageState.metadata);
     const videoRelativePath = lesson.video_path ? path.posix.join('storage', lesson.video_path) : '';
-    const presentationRelativePath = lesson.presentation_path
-      ? path.posix.join('storage', lesson.presentation_path)
+    const presentationStoragePath = storageState.presentationSourcePath ?? lesson.presentation_path ?? '';
+    const presentationRelativePath = presentationStoragePath
+      ? path.posix.join('storage', presentationStoragePath)
       : '';
     const coverRelativePath = storageState.coverPath
       ? path.posix.join('storage', storageState.coverPath)
@@ -130,6 +131,23 @@ export function getBootstrapPayload() {
       primaryVideo?.durationSeconds,
       primaryVideo?.src ? lesson.video_duration_seconds : null
     );
+    const presentationPdfPath = storageState.presentationPdfPath || '';
+    const presentationSourcePath = storageState.presentationSourcePath || lesson.presentation_path || '';
+    const presentationPdfRelativePath = presentationPdfPath ? path.posix.join('storage', presentationPdfPath) : '';
+    const presentationSourceRelativePath = presentationSourcePath
+      ? path.posix.join('storage', presentationSourcePath)
+      : presentationRelativePath;
+    const presentationViewerHref = toPublicStorageUrl(presentationPdfPath);
+    const presentationSourceHref = toPublicStorageUrl(presentationSourcePath);
+    const presentation = buildLessonPresentation({
+      lessonId: lesson.id,
+      order: lesson.course_order,
+      storageState,
+      sourcePresentationPath: lesson.presentation_path,
+      previewEndpoint: lesson.presentation_path
+        ? `/api/lessons/${encodeURIComponent(lesson.id)}/presentation-preview`
+        : ''
+    });
 
     return {
       id: lesson.id,
@@ -176,7 +194,34 @@ export function getBootstrapPayload() {
         description: `Материал к уроку ${lesson.course_order}`,
         previewEndpoint: lesson.presentation_path
           ? `/api/lessons/${encodeURIComponent(lesson.id)}/presentation-preview`
-          : ''
+          : '',
+        href: presentationViewerHref || presentationSourceHref,
+        viewerHref: presentationViewerHref,
+        relativePath: presentationPdfRelativePath || presentationSourceRelativePath,
+        pdfRelativePath: presentationPdfRelativePath,
+        fileName: presentationViewerHref
+          ? path.posix.basename(presentationPdfPath)
+          : presentationSourcePath
+            ? path.posix.basename(presentationSourcePath)
+            : '',
+        format: presentationViewerHref ? 'pdf' : presentationSourceHref ? 'pptx' : '',
+        label: presentationViewerHref ? 'Открыть PDF' : presentationSourceHref ? 'Скачать PPTX' : '',
+        downloadHref: presentationViewerHref || presentationSourceHref,
+        downloadFileName: presentationViewerHref
+          ? path.posix.basename(presentationPdfPath)
+          : presentationSourcePath
+            ? path.posix.basename(presentationSourcePath)
+            : '',
+        downloadLabel: presentationViewerHref ? 'Скачать PDF' : presentationSourceHref ? 'Скачать PPTX' : '',
+        sourceHref: presentationSourceHref,
+        sourceRelativePath: presentationSourceRelativePath,
+        sourceFileName: presentationSourcePath ? path.posix.basename(presentationSourcePath) : '',
+        sourceLabel: presentationViewerHref && presentationSourceHref ? 'Скачать PPTX' : '',
+        previewEndpoint: presentationViewerHref
+          ? ''
+          : presentationSourcePath
+            ? `/api/lessons/${encodeURIComponent(lesson.id)}/presentation-preview`
+            : ''
       },
       quiz: parseJson(lesson.quiz_json, null)
     };
@@ -223,12 +268,19 @@ export function createStaticBootstrapPayload() {
       primaryVideo?.durationSeconds,
       primaryVideo?.src ? lesson.durationSeconds : null
     );
+    const presentationPdfPath = storageState.presentationPdfPath || '';
+    const presentationSourcePath = storageState.presentationSourcePath || '';
+    const presentationViewerHref = toPublicStorageUrl(presentationPdfPath) || lesson.presentation?.viewerHref || '';
+    const presentationSourceHref = toPublicStorageUrl(presentationSourcePath) || lesson.presentation?.sourceHref || '';
     const coverRelativePath = storageState.coverPath
       ? path.posix.join('storage', storageState.coverPath)
       : lesson.cover?.relativePath ?? '';
-    const presentationRelativePath = storageState.presentationPath
-      ? path.posix.join('storage', storageState.presentationPath)
+    const presentationRelativePath = presentationSourcePath
+      ? path.posix.join('storage', presentationSourcePath)
       : lesson.presentation?.relativePath ?? '';
+    const presentationPdfRelativePath = presentationPdfPath
+      ? path.posix.join('storage', presentationPdfPath)
+      : lesson.presentation?.pdfRelativePath ?? '';
 
     return {
       ...lesson,
@@ -269,6 +321,39 @@ export function createStaticBootstrapPayload() {
         fileName: storageState.presentationPath
           ? path.posix.basename(storageState.presentationPath)
           : lesson.presentation?.fileName ?? '',
+        previewEndpoint: '',
+        href: presentationViewerHref || presentationSourceHref || lesson.presentation?.href || '',
+        viewerHref: presentationViewerHref,
+        relativePath: presentationPdfRelativePath || presentationRelativePath,
+        pdfRelativePath: presentationPdfRelativePath,
+        fileName: presentationViewerHref
+          ? path.posix.basename(presentationPdfPath)
+          : presentationSourcePath
+            ? path.posix.basename(presentationSourcePath)
+            : lesson.presentation?.fileName ?? '',
+        format: presentationViewerHref ? 'pdf' : presentationSourceHref ? 'pptx' : lesson.presentation?.format ?? '',
+        label:
+          presentationViewerHref
+            ? 'Открыть PDF'
+            : presentationSourceHref
+              ? 'Скачать PPTX'
+              : lesson.presentation?.label ?? '',
+        downloadHref: presentationViewerHref || presentationSourceHref || lesson.presentation?.downloadHref || '',
+        downloadFileName: presentationViewerHref
+          ? path.posix.basename(presentationPdfPath)
+          : presentationSourcePath
+            ? path.posix.basename(presentationSourcePath)
+            : lesson.presentation?.downloadFileName ?? '',
+        downloadLabel:
+          presentationViewerHref
+            ? 'Скачать PDF'
+            : presentationSourceHref
+              ? 'Скачать PPTX'
+              : lesson.presentation?.downloadLabel ?? '',
+        sourceHref: presentationSourceHref,
+        sourceRelativePath: presentationRelativePath,
+        sourceFileName: presentationSourcePath ? path.posix.basename(presentationSourcePath) : '',
+        sourceLabel: presentationViewerHref && presentationSourceHref ? 'Скачать PPTX' : '',
         previewEndpoint: ''
       }
     };

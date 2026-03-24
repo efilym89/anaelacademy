@@ -289,6 +289,10 @@ function buildRouteHash(route) {
     return '#/home/presentations';
   }
 
+  if (route.screen === 'presentation' && route.lessonId) {
+    return `#/home/presentation/${encodeURIComponent(route.lessonId)}`;
+  }
+
   if (route.screen === 'lesson' && route.lessonId) {
     return `#/home/lesson/${encodeURIComponent(route.lessonId)}`;
   }
@@ -342,6 +346,10 @@ function parseRoute() {
 
   if (segments[1] === 'presentations') {
     return { tab: 'home', screen: 'presentations' };
+  }
+
+  if (segments[1] === 'presentation' && segments[2]) {
+    return { tab: 'home', screen: 'presentation', lessonId: decodeURIComponent(segments[2]) };
   }
 
   if (segments[1] === 'lesson' && segments[2]) {
@@ -436,6 +444,8 @@ function renderCurrentRoute() {
     renderCourses();
   } else if (guard.route.screen === 'presentations') {
     renderPresentationLibrary();
+  } else if (guard.route.screen === 'presentation') {
+    renderPresentationDetail(guard.route.lessonId);
   } else if (guard.route.screen === 'lesson') {
     renderLessonDetail(guard.route.lessonId);
   } else if (guard.route.screen === 'player') {
@@ -1091,6 +1101,15 @@ function renderLessonTest(lessonId) {
 
 function renderPresentationLibrary() {
   const items = getFilteredPresentations(uiState.presentationSearch);
+  const groupedItems = academyCourse.days
+    .map((day) => ({
+      ...day,
+      lessons: items.filter((lesson) => lesson.dayNumber === day.number)
+    }))
+    .filter((day) => day.lessons.length > 0);
+  const availableCount = items.filter((lesson) => hasPresentationAsset(lesson)).length;
+  const pdfCount = items.filter((lesson) => hasPresentationViewer(lesson)).length;
+  const sourceCount = items.filter((lesson) => getPresentationSourceHref(lesson)).length;
 
   view.innerHTML = `
     <section class="screen-stack">
@@ -1100,11 +1119,25 @@ function renderPresentationLibrary() {
         <div class="section-title">
           <div>
             <p class="eyebrow">Презентации</p>
-            <h2>Материалы к урокам</h2>
+            <h2>PDF-библиотека материалов</h2>
           </div>
           <span class="badge">${items.length}</span>
         </div>
-        <p class="muted">Раздел уже встроен в маршруты и готов к подключению реальных материалов. Если файла пока нет, карточка останется как заготовка.</p>
+        <p class="muted">Все материалы уроков собраны в одном разделе: основная версия открывается как PDF прямо в mini app, а исходный PPTX остаётся доступен как запасной файл.</p>
+        <div class="stats-strip stats-strip--courses">
+          <article class="metric-card">
+            <strong>${pdfCount}</strong>
+            <span>PDF</span>
+          </article>
+          <article class="metric-card">
+            <strong>${sourceCount}</strong>
+            <span>PPTX</span>
+          </article>
+          <article class="metric-card">
+            <strong>${availableCount}</strong>
+            <span>Материалов</span>
+          </article>
+        </div>
       </section>
 
       <section class="section section--compact">
@@ -1121,18 +1154,18 @@ function renderPresentationLibrary() {
       <section class="section">
         <div class="section-title">
           <div>
-            <p class="eyebrow">Библиотека материалов</p>
-            <h3>Карточки презентаций</h3>
+            <p class="eyebrow">Библиотека</p>
+            <h3>Материалы по дням обучения</h3>
           </div>
-          <span class="badge">${items.filter((item) => item.presentation?.href).length} доступно</span>
+          <span class="badge">${availableCount} доступно</span>
         </div>
-        <div class="lesson-feed">
+        <div class="presentation-library">
           ${
             items.length
-              ? items.map((lesson) => buildPresentationCard(lesson)).join('')
+              ? groupedItems.map((day) => buildPresentationDaySection(day)).join('')
               : buildEmptyState(
                   'Материалы не найдены',
-                  'Либо поиск не дал результатов, либо презентации еще не подключены. Маршрут уже готов и позже примет реальные данные.'
+                  'Либо поиск не дал результатов, либо для этих уроков ещё не подготовлены PDF-материалы.'
                 )
           }
         </div>
@@ -1147,6 +1180,117 @@ function renderPresentationLibrary() {
   document.querySelector('#presentationSearchInput')?.addEventListener('input', (event) => {
     uiState.presentationSearch = event.target.value;
     renderPresentationLibrary();
+  });
+
+  bindNavigationActions(view);
+}
+
+function renderPresentationDetail(lessonId) {
+  const lesson = getLessonById(academyCourse, lessonId);
+  if (!lesson) {
+    navigateToRoute({ tab: 'home', screen: 'presentations' }, { replace: true });
+    return;
+  }
+
+  const viewerHref = getPresentationViewerHref(lesson);
+  const downloadHref = getPresentationDownloadHref(lesson);
+  const downloadFileName = getPresentationDownloadFileName(lesson);
+  const sourceHref = getPresentationSourceHref(lesson);
+  const sourceFileName = getPresentationSourceFileName(lesson);
+  const pdfEmbedHref = buildEmbeddedPdfUrl(viewerHref);
+  const lessonProgress = getLessonProgress(progress, lesson.id);
+
+  view.innerHTML = `
+    <section class="screen-stack">
+      <div class="page-actions">
+        <button class="back-link" id="backToPresentationLibrary" type="button">К библиотеке</button>
+        <button class="back-link" id="backToLessonFromPresentation" type="button">К уроку</button>
+      </div>
+
+      <section class="hero-panel hero-panel--soft">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Презентация к уроку</p>
+            <h2>${escapeHtml(lesson.title)}</h2>
+          </div>
+          <span class="badge">${escapeHtml(hasPresentationViewer(lesson) ? 'PDF' : 'Материал')}</span>
+        </div>
+        <p class="muted">${escapeHtml(lesson.presentation?.description || lesson.shortDescription || lesson.description)}</p>
+        <div class="status-row">
+          ${renderStatusChip(`День ${lesson.dayNumber} · Урок ${lesson.lessonNumber}`, 'muted')}
+          ${renderStatusChip(hasPresentationViewer(lesson) ? 'PDF готов' : 'PDF недоступен', hasPresentationViewer(lesson) ? 'success' : 'muted')}
+          ${sourceHref ? renderStatusChip('Есть PPTX', 'warning') : ''}
+          ${lessonProgress.isFavorite ? renderStatusChip('В избранном', 'success') : ''}
+        </div>
+      </section>
+
+      <section class="section">
+        ${
+          viewerHref
+            ? `
+              <div class="presentation-viewer">
+                <div class="presentation-toolbar">
+                  <div class="status-row status-row--tight">
+                    ${renderStatusChip('Встроенный просмотр', 'success')}
+                    ${sourceHref ? renderStatusChip('Исходник сохранён', 'warning') : ''}
+                  </div>
+                  <div class="detail-actions detail-actions--library">
+                    <a class="button" href="${escapeHtml(viewerHref)}" target="_blank" rel="noopener">Открыть PDF</a>
+                    <a class="button button--secondary" href="${escapeHtml(downloadHref)}" download="${escapeHtml(downloadFileName)}">Скачать PDF</a>
+                    ${
+                      sourceHref
+                        ? `<a class="button button--secondary" href="${escapeHtml(sourceHref)}" download="${escapeHtml(sourceFileName)}">Исходник PPTX</a>`
+                        : ''
+                    }
+                  </div>
+                </div>
+                <div class="presentation-frame">
+                  <iframe
+                    src="${escapeHtml(pdfEmbedHref)}"
+                    title="${escapeHtml(`Презентация к уроку ${lesson.title}`)}"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                  ></iframe>
+                </div>
+              </div>
+            `
+            : buildEmptyState(
+                'PDF пока недоступен',
+                sourceHref
+                  ? 'Для этого урока пока доступен только исходный PPTX-файл. Его можно скачать и открыть отдельно.'
+                  : 'Для этого урока материал ещё не подготовлен.'
+              )
+        }
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Кратко</p>
+            <h3>Что внутри материала</h3>
+          </div>
+          <span class="badge">${escapeHtml(lesson.duration || '00:00')}</span>
+        </div>
+        <p class="muted">${escapeHtml(lesson.fullDescription || lesson.shortDescription || lesson.description)}</p>
+        ${
+          lesson.objectives?.length
+            ? `
+              <div class="objectives">
+                ${lesson.objectives.map((objective) => `<span class="objective-pill">${escapeHtml(objective)}</span>`).join('')}
+              </div>
+            `
+            : ''
+        }
+      </section>
+    </section>
+  `;
+
+  document.querySelector('#backToPresentationLibrary')?.addEventListener('click', () => {
+    navigateToRoute({ tab: 'home', screen: 'presentations' });
+  });
+
+  document.querySelector('#backToLessonFromPresentation')?.addEventListener('click', () => {
+    navigateToRoute({ tab: 'home', screen: 'lesson', lessonId: lesson.id });
   });
 
   bindNavigationActions(view);
@@ -1269,7 +1413,52 @@ function getFilteredLessons(sourceLessons, searchQuery, sortMode) {
 }
 
 function getFilteredPresentations(searchQuery) {
-  return getFilteredLessons(academyCourse.lessons, searchQuery, 'newest');
+  return getFilteredLessons(
+    academyCourse.lessons.filter((lesson) => hasPresentationAsset(lesson)),
+    searchQuery,
+    'course'
+  );
+}
+
+function hasPresentationAsset(lesson) {
+  return Boolean(getPresentationViewerHref(lesson) || getPresentationSourceHref(lesson));
+}
+
+function hasPresentationViewer(lesson) {
+  return Boolean(getPresentationViewerHref(lesson));
+}
+
+function getPresentationViewerHref(lesson) {
+  const presentation = lesson.presentation ?? {};
+  return presentation.viewerHref || (presentation.format === 'pdf' ? presentation.href || '' : '');
+}
+
+function getPresentationDownloadHref(lesson) {
+  const presentation = lesson.presentation ?? {};
+  return presentation.downloadHref || getPresentationViewerHref(lesson) || presentation.href || '';
+}
+
+function getPresentationDownloadFileName(lesson) {
+  const presentation = lesson.presentation ?? {};
+  return presentation.downloadFileName || presentation.fileName || 'presentation.pdf';
+}
+
+function getPresentationSourceHref(lesson) {
+  const presentation = lesson.presentation ?? {};
+  return presentation.sourceHref || (presentation.format === 'pptx' ? presentation.href || '' : '');
+}
+
+function getPresentationSourceFileName(lesson) {
+  const presentation = lesson.presentation ?? {};
+  return presentation.sourceFileName || (presentation.format === 'pptx' ? presentation.fileName || '' : '');
+}
+
+function buildEmbeddedPdfUrl(href) {
+  if (!href) {
+    return '';
+  }
+
+  return href.includes('#') ? `${href}&view=FitH` : `${href}#view=FitH`;
 }
 
 function matchesLessonSearch(lesson, normalizedQuery) {
@@ -1323,7 +1512,7 @@ function resolveCategoryBadge(category) {
   }
 
   if (category.type === 'presentations') {
-    const availablePresentations = academyCourse.lessons.filter((lesson) => lesson.presentation?.href).length;
+    const availablePresentations = academyCourse.lessons.filter((lesson) => hasPresentationAsset(lesson)).length;
     return availablePresentations > 0 ? String(availablePresentations) : 'Go';
   }
 
@@ -1368,8 +1557,30 @@ function buildCourseLessonCard(lesson) {
   `;
 }
 
+function buildPresentationDaySection(day) {
+  return `
+    <section class="presentation-day">
+      <div class="section-title section-title--compact">
+        <div>
+          <p class="eyebrow">День ${day.number}</p>
+          <h3>${escapeHtml(day.title)}</h3>
+        </div>
+        <span class="badge">${day.lessons.length}</span>
+      </div>
+      <div class="lesson-feed">
+        ${day.lessons.map((lesson) => buildPresentationCard(lesson)).join('')}
+      </div>
+    </section>
+  `;
+}
+
 function buildPresentationCard(lesson) {
-  const isAvailable = Boolean(lesson.presentation?.href);
+  const viewerHref = getPresentationViewerHref(lesson);
+  const downloadHref = getPresentationDownloadHref(lesson);
+  const downloadFileName = getPresentationDownloadFileName(lesson);
+  const sourceHref = getPresentationSourceHref(lesson);
+  const sourceFileName = getPresentationSourceFileName(lesson);
+  const isAvailable = Boolean(viewerHref || sourceHref);
   const lessonProgress = getLessonProgress(progress, lesson.id);
 
   return `
@@ -1381,25 +1592,43 @@ function buildPresentationCard(lesson) {
       <div class="lesson-card__body">
         <div class="lesson-card__meta">
           <span class="lesson-order">День ${lesson.dayNumber} · Урок ${lesson.lessonNumber}</span>
-          ${renderStatusChip(isAvailable ? 'Доступно' : 'Скоро', isAvailable ? 'success' : 'muted')}
+          ${renderStatusChip(viewerHref ? 'PDF готов' : isAvailable ? 'Исходник' : 'Скоро', isAvailable ? 'success' : 'muted')}
         </div>
         <h3>${escapeHtml(lesson.title)}</h3>
         <p class="muted">${escapeHtml(lesson.presentation?.description || lesson.shortDescription || lesson.description)}</p>
+        <div class="status-row status-row--tight">
+          ${viewerHref ? renderStatusChip('PDF', 'success') : renderStatusChip('PDF нет', 'muted')}
+          ${sourceHref ? renderStatusChip('PPTX', 'warning') : ''}
+          ${lessonProgress.isFavorite ? renderStatusChip('Избранное', 'success') : ''}
+        </div>
         <div class="detail-actions detail-actions--library">
           <button class="button ${isAvailable ? '' : 'button--disabled'}" type="button" ${
-            isAvailable ? `data-open-lesson="${escapeHtml(lesson.id)}"` : 'disabled'
+            isAvailable ? `data-open-presentation="${escapeHtml(lesson.id)}"` : 'disabled'
           }>
-            ${isAvailable ? 'Открыть материал' : 'Материал скоро'}
+            ${viewerHref ? 'Открыть PDF' : isAvailable ? 'Открыть материал' : 'Материал скоро'}
           </button>
           ${
-            isAvailable
+            downloadHref
               ? `
                 <a
                   class="button button--secondary"
-                  href="${escapeHtml(lesson.presentation.href)}"
-                  download="${escapeHtml(lesson.presentation.fileName || 'presentation.pptx')}"
+                  href="${escapeHtml(downloadHref)}"
+                  download="${escapeHtml(downloadFileName)}"
                 >
-                  Скачать PPTX
+                  ${escapeHtml(viewerHref ? 'Скачать PDF' : 'Скачать материал')}
+                </a>
+              `
+              : ''
+          }
+          ${
+            viewerHref && sourceHref
+              ? `
+                <a
+                  class="button button--secondary"
+                  href="${escapeHtml(sourceHref)}"
+                  download="${escapeHtml(sourceFileName || 'presentation.pptx')}"
+                >
+                  Исходник PPTX
                 </a>
               `
               : ''
@@ -1975,6 +2204,15 @@ function bindNavigationActions(scope) {
   scope.querySelectorAll('[data-open-lesson]').forEach((button) => {
     button.addEventListener('click', () => {
       openLessonFromDataset(button.dataset.openLesson);
+    });
+  });
+
+  scope.querySelectorAll('[data-open-presentation]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const lessonId = button.dataset.openPresentation;
+      if (lessonId) {
+        navigateToRoute({ tab: 'home', screen: 'presentation', lessonId });
+      }
     });
   });
 

@@ -9,6 +9,7 @@
     "db:seed": "node --no-warnings=ExperimentalWarning server/scripts/seed-db.js",
     "db:sync-storage": "node --no-warnings=ExperimentalWarning server/scripts/sync-storage.js",
     "storage:normalize": "node --no-warnings=ExperimentalWarning server/scripts/normalize-storage.js",
+    "presentations:export-pdf": "node --no-warnings=ExperimentalWarning scripts/export-presentation-pdfs.mjs",
     "pages:build": "node --no-warnings=ExperimentalWarning scripts/build-pages.mjs",
     "cloudflare:dev": "npm run pages:build && npx wrangler dev",
     "cloudflare:deploy": "npm run pages:build && npx wrangler deploy"

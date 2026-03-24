@@ -124,9 +124,12 @@ storage/day-1/lesson-1/presentation.pptx
 
 ```bash
 npm run db:sync-storage
+npm run presentations:export-pdf
 ```
 
 После этого приложение начнет отдавать файлы по HTTP через `/storage/...`, а пути сохранятся в SQLite.
+
+`npm run presentations:export-pdf` пакетно конвертирует все `storage/**/presentation.pptx` в `presentation.pdf`, чтобы раздел `Презентации` в mini app открывал материалы как PDF, а исходные `.pptx` оставались доступными для скачивания.
 
 Если вы вставили контент в “человеческой” структуре вроде `День первый/День первый Урок 1/...`, проект тоже справится:
 
