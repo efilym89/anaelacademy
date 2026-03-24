@@ -1,4 +1,6 @@
 {
   "title": "Приветствие",
-  "status": "published"
+  "status": "published",
+  "videoDurationSeconds": 256,
+  "durationLabel": "04:16"
 }

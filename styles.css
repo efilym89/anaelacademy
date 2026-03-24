@@ -947,6 +947,7 @@ h3 {
   gap: 10px;
   z-index: 2;
   pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .lesson-player-card__topbar .cover-badge {
@@ -1014,10 +1015,18 @@ h3 {
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(14px);
   z-index: 2;
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .lesson-player-card__feedback[hidden] {
   display: none;
+}
+
+.lesson-player-card[data-video-state='playing'] .lesson-player-card__topbar,
+.lesson-player-card[data-video-state='playing'] .lesson-player-card__feedback {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
 }
 
 .lesson-player-card__play-icon {

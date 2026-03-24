@@ -120,6 +120,16 @@ export function getBootstrapPayload() {
     const speakerName = storageMetadata.speakerName ?? lesson.speaker_name ?? 'Команда Annaelle Academy';
     const videoSequence = resolveLessonVideoSequence(lesson, storageState, storageMetadata);
     const primaryVideo = videoSequence[0] ?? null;
+    const duration = resolveLessonDurationLabel(
+      storageMetadata.durationLabel,
+      primaryVideo?.durationLabel,
+      primaryVideo?.src ? lesson.duration_label ?? formatDuration(lesson.video_duration_seconds) : ''
+    );
+    const durationSeconds = resolveLessonDurationSeconds(
+      storageMetadata.videoDurationSeconds,
+      primaryVideo?.durationSeconds,
+      primaryVideo?.src ? lesson.video_duration_seconds : null
+    );
 
     return {
       id: lesson.id,
@@ -134,8 +144,8 @@ export function getBootstrapPayload() {
       objectives,
       categoryId: 'courses',
       isPublished: lesson.status === 'published',
-      duration: lesson.duration_label ?? formatDuration(lesson.video_duration_seconds) ?? '00:00',
-      durationSeconds: lesson.video_duration_seconds,
+      duration,
+      durationSeconds,
       status: lesson.status,
       createdAt: lesson.created_at,
       updatedAt: lesson.updated_at,
@@ -203,6 +213,16 @@ export function createStaticBootstrapPayload() {
       storageMetadata.fullDescription ?? lesson.fullDescription ?? buildFullDescription(shortDescription, objectives);
     const videoSequence = resolveStaticLessonVideoSequence(lesson, storageState, storageMetadata);
     const primaryVideo = videoSequence[0] ?? null;
+    const duration = resolveLessonDurationLabel(
+      storageMetadata.durationLabel,
+      primaryVideo?.durationLabel,
+      primaryVideo?.src ? lesson.duration : ''
+    );
+    const durationSeconds = resolveLessonDurationSeconds(
+      storageMetadata.videoDurationSeconds,
+      primaryVideo?.durationSeconds,
+      primaryVideo?.src ? lesson.durationSeconds : null
+    );
     const coverRelativePath = storageState.coverPath
       ? path.posix.join('storage', storageState.coverPath)
       : lesson.cover?.relativePath ?? '';
@@ -218,9 +238,8 @@ export function createStaticBootstrapPayload() {
       fullDescription,
       speakerName: storageMetadata.speakerName ?? lesson.speakerName ?? 'Команда Annaelle Academy',
       objectives,
-      duration: storageMetadata.durationLabel ?? primaryVideo?.durationLabel ?? lesson.duration ?? '00:00',
-      durationSeconds:
-        storageMetadata.videoDurationSeconds ?? primaryVideo?.durationSeconds ?? lesson.durationSeconds ?? null,
+      duration,
+      durationSeconds,
       status: storageMetadata.status ?? lesson.status,
       storage: {
         provider: 'static',
@@ -275,7 +294,6 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
   );
   const defaultVideoFile = storageState.videoFiles?.[0] ?? null;
   const lessonFolderRelative = path.posix.join(`day-${lesson.dayNumber}`, `lesson-${lesson.lessonNumber}`);
-  const fallbackVideoRelativePath = path.posix.join(lessonFolderRelative, 'video.mp4');
 
   if (Array.isArray(metadata.videoSequence) && metadata.videoSequence.length > 0) {
     return metadata.videoSequence.map((entry, index) => {
@@ -284,12 +302,7 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
         availableVideoFiles.get(fileReference.toLowerCase()) ?? (!fileReference && index === 0 ? defaultVideoFile : null);
       const durationSeconds = entry.videoDurationSeconds ?? lesson.durationSeconds ?? null;
       const syntheticRelativePath =
-        resolvedFile?.relativePath ??
-        (fileReference
-          ? path.posix.join(lessonFolderRelative, path.posix.basename(fileReference))
-          : index === 0
-            ? fallbackVideoRelativePath
-            : '');
+        resolvedFile?.relativePath ?? (fileReference ? path.posix.join(lessonFolderRelative, path.posix.basename(fileReference)) : '');
 
       return {
         id: entry.id || `${lesson.id}-video-${index + 1}`,
@@ -310,13 +323,15 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
       id: `${lesson.id}-video-1`,
       order: 1,
       title: 'Видео 1',
-      src: toPublicVideoUrl(defaultVideoFile?.relativePath ?? fallbackVideoRelativePath),
-      relativePath: path.posix.join('storage', defaultVideoFile?.relativePath ?? fallbackVideoRelativePath),
+      src: defaultVideoFile ? toPublicVideoUrl(defaultVideoFile.relativePath) : '',
+      relativePath: defaultVideoFile ? path.posix.join('storage', defaultVideoFile.relativePath) : '',
       completionThreshold: clampCompletionThreshold(lesson.video?.completionThreshold),
       placeholderNote: metadata.placeholderNote || lesson.video?.placeholderNote || '',
-      durationSeconds: metadata.videoDurationSeconds ?? lesson.durationSeconds ?? null,
+      durationSeconds: metadata.videoDurationSeconds ?? (defaultVideoFile ? lesson.durationSeconds : null) ?? null,
       durationLabel:
-        metadata.durationLabel || formatDuration(metadata.videoDurationSeconds ?? lesson.durationSeconds) || lesson.duration || ''
+        metadata.durationLabel ||
+        formatDuration(metadata.videoDurationSeconds ?? (defaultVideoFile ? lesson.durationSeconds : null)) ||
+        (defaultVideoFile ? lesson.duration : '')
     }
   ];
 }
@@ -497,6 +512,22 @@ function clampCompletionThreshold(value) {
   }
 
   return Math.min(Math.max(value, 0.1), 1);
+}
+
+function resolveLessonDurationLabel(primaryLabel, secondaryLabel, fallbackLabel) {
+  return primaryLabel || secondaryLabel || fallbackLabel || '00:00';
+}
+
+function resolveLessonDurationSeconds(primarySeconds, secondarySeconds, fallbackSeconds) {
+  if (Number.isFinite(primarySeconds)) {
+    return primarySeconds;
+  }
+
+  if (Number.isFinite(secondarySeconds)) {
+    return secondarySeconds;
+  }
+
+  return Number.isFinite(fallbackSeconds) ? fallbackSeconds : null;
 }
 
 function videoRelativePathFromLesson(relativePath) {

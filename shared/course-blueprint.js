@@ -50,7 +50,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 1,
     title: 'Введение в курс и формат обучения',
-    duration: '07:30',
+    duration: '04:16',
     description:
       'Разбираем структуру программы, последовательность уроков и правила работы с локальной базой материалов.',
     objectives: [
@@ -63,7 +63,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 2,
     title: 'Подготовка рабочего места и оборудования',
-    duration: '10:10',
+    duration: '04:00',
     description:
       'Проверяем рабочую зону, технику и расходные материалы перед началом учебной практики.',
     objectives: [
@@ -76,7 +76,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 3,
     title: 'Стандарты безопасности и противопоказания',
-    duration: '11:20',
+    duration: '03:34',
     description:
       'Собираем ключевые требования к безопасности, ограничениям и предварительной оценке ситуации.',
     objectives: [
@@ -89,7 +89,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 4,
     title: 'Первичная консультация клиента',
-    duration: '09:40',
+    duration: '03:48',
     description:
       'Отрабатываем сценарий первой консультации, сбор анамнеза и фиксацию ожиданий клиента.',
     objectives: [
@@ -102,7 +102,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 5,
     title: 'Подготовка клиента к процедуре',
-    duration: '08:50',
+    duration: '03:08',
     description:
       'Показываем, как подготовить клиента к занятию и не потерять обязательные этапы перед стартом.',
     objectives: [
@@ -115,7 +115,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 6,
     title: 'Базовые настройки аппарата',
-    duration: '12:00',
+    duration: '04:42',
     description:
       'Разбираем стартовые параметры, режимы работы и проверку оборудования перед использованием.',
     objectives: [
@@ -128,7 +128,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 7,
     title: 'Выбор режима под задачу урока',
-    duration: '09:15',
+    duration: '03:29',
     description:
       'Учимся сопоставлять задачу урока, особенности клиента и рабочий режим аппарата.',
     objectives: [
@@ -141,7 +141,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 8,
     title: 'Тестовый проход и контроль реакции',
-    duration: '10:45',
+    duration: '03:26',
     description:
       'Проводим тестовый участок, наблюдаем реакцию и корректируем действия до основной работы.',
     objectives: [
@@ -154,7 +154,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 9,
     title: 'Типовые ошибки первого дня',
-    duration: '08:35',
+    duration: '03:48',
     description:
       'Разбираем ошибки новичков, признаки неправильной настройки и способы быстро исправить сценарий.',
     objectives: [
@@ -167,7 +167,7 @@ const lessonBlueprints = [
     dayNumber: 1,
     lessonNumber: 10,
     title: 'Итог дня 1 и контрольный разбор',
-    duration: '07:55',
+    duration: '02:58',
     description:
       'Подводим итоги первого дня, закрепляем основные правила и готовим переход к следующему блоку.',
     objectives: [
@@ -180,7 +180,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 1,
     title: 'Старт второго дня и повтор ключевых правил',
-    duration: '07:40',
+    duration: '05:59',
     description:
       'Кратко повторяем обязательные требования и готовим участников ко второму дню курса.',
     objectives: [
@@ -193,7 +193,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 2,
     title: 'Подбор параметров под разные сценарии',
-    duration: '11:05',
+    duration: '04:18',
     description:
       'Разбираем, как меняются параметры в зависимости от сценария, зоны и вводных условий.',
     objectives: [
@@ -206,7 +206,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 3,
     title: 'Работа по зонам: лицо и малые участки',
-    duration: '09:25',
+    duration: '04:09',
     description:
       'Фокусируемся на малых зонах и аккуратной технике ведения процедуры на чувствительных участках.',
     objectives: [
@@ -219,7 +219,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 4,
     title: 'Работа по зонам: тело и крупные участки',
-    duration: '10:30',
+    duration: '04:41',
     description:
       'Показываем логику ведения процедуры на крупных зонах, темп работы и контроль повторов.',
     objectives: [
@@ -232,7 +232,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 5,
     title: 'Коммуникация во время процедуры',
-    duration: '08:20',
+    duration: '08:15',
     description:
       'Учимся сопровождать клиента во время работы, предупреждать о шагах и корректно реагировать на обратную связь.',
     objectives: [
@@ -245,7 +245,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 6,
     title: 'Работа с чувствительностью и дискомфортом',
-    duration: '09:55',
+    duration: '05:27',
     description:
       'Разбираем, как оценивать дискомфорт, когда снижать интенсивность и когда останавливать сценарий.',
     objectives: [
@@ -258,7 +258,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 7,
     title: 'Постпроцедурные рекомендации',
-    duration: '07:50',
+    duration: '07:07',
     description:
       'Формируем список рекомендаций после завершения процедуры и учимся объяснять ограничения клиенту.',
     objectives: [
@@ -271,7 +271,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 8,
     title: 'Документация и фиксация результатов',
-    duration: '08:45',
+    duration: '04:19',
     description:
       'Показываем, какие данные нужно сохранить после урока и как не потерять результаты обучения.',
     objectives: [
@@ -284,7 +284,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 9,
     title: 'Разбор сложных кейсов и отклонений',
-    duration: '10:15',
+    duration: '08:56',
     description:
       'Смотрим на нестандартные случаи, отклонения от привычного сценария и безопасные решения.',
     objectives: [
@@ -310,7 +310,7 @@ const lessonBlueprints = [
     dayNumber: 2,
     lessonNumber: 11,
     title: 'Финальное резюме курса и допуск к экзамену',
-    duration: '06:55',
+    duration: '05:18',
     description:
       'Подводим итог двухдневного обучения, закрываем вопросы и фиксируем готовность к финальному экзамену.',
     objectives: [
