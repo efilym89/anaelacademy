@@ -294,6 +294,11 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
   );
   const defaultVideoFile = storageState.videoFiles?.[0] ?? null;
   const lessonFolderRelative = path.posix.join(`day-${lesson.dayNumber}`, `lesson-${lesson.lessonNumber}`);
+  const hasMetadataBackedPrimaryVideo =
+    Number.isFinite(metadata.videoDurationSeconds) ||
+    (typeof metadata.durationLabel === 'string' && metadata.durationLabel.trim().length > 0);
+  const fallbackVideoRelativePath = path.posix.join(lessonFolderRelative, 'video.mp4');
+  const primaryVideoRelativePath = defaultVideoFile?.relativePath ?? (hasMetadataBackedPrimaryVideo ? fallbackVideoRelativePath : '');
 
   if (Array.isArray(metadata.videoSequence) && metadata.videoSequence.length > 0) {
     return metadata.videoSequence.map((entry, index) => {
@@ -302,7 +307,12 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
         availableVideoFiles.get(fileReference.toLowerCase()) ?? (!fileReference && index === 0 ? defaultVideoFile : null);
       const durationSeconds = entry.videoDurationSeconds ?? lesson.durationSeconds ?? null;
       const syntheticRelativePath =
-        resolvedFile?.relativePath ?? (fileReference ? path.posix.join(lessonFolderRelative, path.posix.basename(fileReference)) : '');
+        resolvedFile?.relativePath ??
+        (fileReference
+          ? path.posix.join(lessonFolderRelative, path.posix.basename(fileReference))
+          : index === 0
+            ? primaryVideoRelativePath
+            : '');
 
       return {
         id: entry.id || `${lesson.id}-video-${index + 1}`,
@@ -323,15 +333,15 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
       id: `${lesson.id}-video-1`,
       order: 1,
       title: 'Видео 1',
-      src: defaultVideoFile ? toPublicVideoUrl(defaultVideoFile.relativePath) : '',
-      relativePath: defaultVideoFile ? path.posix.join('storage', defaultVideoFile.relativePath) : '',
+      src: primaryVideoRelativePath ? toPublicVideoUrl(primaryVideoRelativePath) : '',
+      relativePath: primaryVideoRelativePath ? path.posix.join('storage', primaryVideoRelativePath) : '',
       completionThreshold: clampCompletionThreshold(lesson.video?.completionThreshold),
       placeholderNote: metadata.placeholderNote || lesson.video?.placeholderNote || '',
-      durationSeconds: metadata.videoDurationSeconds ?? (defaultVideoFile ? lesson.durationSeconds : null) ?? null,
+      durationSeconds: metadata.videoDurationSeconds ?? (primaryVideoRelativePath ? lesson.durationSeconds : null) ?? null,
       durationLabel:
         metadata.durationLabel ||
-        formatDuration(metadata.videoDurationSeconds ?? (defaultVideoFile ? lesson.durationSeconds : null)) ||
-        (defaultVideoFile ? lesson.duration : '')
+        formatDuration(metadata.videoDurationSeconds ?? (primaryVideoRelativePath ? lesson.durationSeconds : null)) ||
+        (primaryVideoRelativePath ? lesson.duration : '')
     }
   ];
 }
