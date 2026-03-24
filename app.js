@@ -2751,6 +2751,7 @@ function bindLessonVideoActions(lesson, lessonProgress) {
   const feedbackText = feedback?.querySelector('[data-video-feedback-text]');
   let lastPersistedBucket = Math.floor(activeVideoProgress.watchRatio * 20);
   let isCorrectingSeek = false;
+  let hasResolvedInitialVideoLoad = video.readyState >= HTMLMediaElement.HAVE_METADATA;
   let lastSeekWarningAt = 0;
   let lastRateWarningAt = 0;
   const completionThreshold = activeVideo.completionThreshold ?? 1;
@@ -2782,6 +2783,11 @@ function bindLessonVideoActions(lesson, lessonProgress) {
     feedback.hidden = true;
     feedbackTitle.textContent = '';
     feedbackText.textContent = '';
+  };
+
+  const resolveInitialVideoLoad = (state = 'ready') => {
+    hasResolvedInitialVideoLoad = true;
+    setVideoShellState(state);
   };
 
   const enforcePlaybackRate = () => {
@@ -2906,19 +2912,26 @@ function bindLessonVideoActions(lesson, lessonProgress) {
 
   video.defaultPlaybackRate = 1;
   video.playbackRate = 1;
-  setVideoShellState('loading');
+  setVideoShellState(hasResolvedInitialVideoLoad ? 'ready' : 'loading');
   video.addEventListener('ratechange', enforcePlaybackRate);
   video.addEventListener('loadstart', () => {
     setVideoShellState('loading');
   });
   video.addEventListener('waiting', () => {
+    if (hasResolvedInitialVideoLoad) {
+      return;
+    }
+
     setVideoShellState('loading');
   });
+  video.addEventListener('loadeddata', () => {
+    resolveInitialVideoLoad('ready');
+  });
   video.addEventListener('canplay', () => {
-    setVideoShellState('ready');
+    resolveInitialVideoLoad('ready');
   });
   video.addEventListener('playing', () => {
-    setVideoShellState('playing');
+    resolveInitialVideoLoad('playing');
   });
   video.addEventListener('pause', () => {
     if (video.ended) {
@@ -2930,6 +2943,7 @@ function bindLessonVideoActions(lesson, lessonProgress) {
   });
 
   video.addEventListener('loadedmetadata', () => {
+    resolveInitialVideoLoad('ready');
     const currentLessonProgress = progress.lessons[lesson.id];
     const currentVideoProgress = getVideoItemProgress(currentLessonProgress, activeVideo.id);
     if (!video.duration) {

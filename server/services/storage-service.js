@@ -59,13 +59,21 @@ export function inspectLessonStorage(dayNumber, lessonNumber) {
 }
 
 export function toPublicStorageUrl(relativeAssetPath) {
+  return buildPublicAssetUrl(relativeAssetPath, config.publicStorageOrigin);
+}
+
+export function toPublicVideoUrl(relativeAssetPath) {
+  return buildPublicAssetUrl(relativeAssetPath, config.publicVideoOrigin || config.publicStorageOrigin);
+}
+
+function buildPublicAssetUrl(relativeAssetPath, origin) {
   if (!relativeAssetPath) {
     return '';
   }
 
   const normalizedRelativePath = normalizeRelativePath(relativeAssetPath);
-  if (config.publicStorageOrigin) {
-    return `${config.publicStorageOrigin}${config.publicStoragePrefix}${normalizedRelativePath}`;
+  if (origin) {
+    return `${origin}${config.publicStoragePrefix}${normalizedRelativePath}`;
   }
 
   return `${config.publicStoragePrefix}${normalizedRelativePath}`;

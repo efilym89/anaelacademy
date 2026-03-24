@@ -13,6 +13,7 @@ export const config = {
   databasePath: resolve(rootDir, getEnvValue('SQLITE_DB_PATH', 'data/anaelacademy.sqlite')),
   storageRoot: resolve(rootDir, getEnvValue('STORAGE_ROOT', 'storage')),
   publicStorageOrigin: normalizeOrigin(getEnvValue('PUBLIC_STORAGE_ORIGIN', '')),
+  publicVideoOrigin: normalizeOrigin(getEnvValue('PUBLIC_VIDEO_ORIGIN', '')),
   presentationPreviewRoot: resolve(
     rootDir,
     getEnvValue('PRESENTATION_PREVIEW_ROOT', 'data/presentation-previews')

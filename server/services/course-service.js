@@ -12,7 +12,8 @@ import {
   ensureCourseStorageFolders,
   getLessonFolderRelative,
   inspectLessonStorage,
-  toPublicStorageUrl
+  toPublicStorageUrl,
+  toPublicVideoUrl
 } from './storage-service.js';
 import { normalizeImportedStorage } from './storage-normalizer.js';
 
@@ -150,7 +151,7 @@ export function getBootstrapPayload() {
         badge: `Урок ${lesson.course_order}`
       },
       video: {
-        src: primaryVideo?.src ?? toPublicStorageUrl(lesson.video_path),
+        src: primaryVideo?.src ?? toPublicVideoUrl(lesson.video_path),
         relativePath: primaryVideo?.relativePath ?? videoRelativePath,
         completionThreshold: primaryVideo?.completionThreshold ?? lesson.completion_threshold,
         placeholderNote: primaryVideo?.placeholderNote ?? lesson.placeholder_note,
@@ -233,7 +234,7 @@ export function createStaticBootstrapPayload() {
       },
       video: {
         ...(lesson.video ?? {}),
-        src: primaryVideo?.src ?? toPublicStorageUrl(storageState.videoPath),
+        src: primaryVideo?.src ?? toPublicVideoUrl(storageState.videoPath),
         relativePath: primaryVideo?.relativePath ?? videoRelativePathFromLesson(storageState.videoPath),
         completionThreshold: primaryVideo?.completionThreshold ?? lesson.video?.completionThreshold ?? 1,
         placeholderNote:
@@ -294,7 +295,7 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
         id: entry.id || `${lesson.id}-video-${index + 1}`,
         order: index + 1,
         title: entry.title || `Видео ${index + 1}`,
-        src: syntheticRelativePath ? toPublicStorageUrl(syntheticRelativePath) : '',
+        src: syntheticRelativePath ? toPublicVideoUrl(syntheticRelativePath) : '',
         relativePath: syntheticRelativePath ? path.posix.join('storage', syntheticRelativePath) : '',
         completionThreshold: clampCompletionThreshold(entry.completionThreshold ?? lesson.video?.completionThreshold),
         placeholderNote: entry.placeholderNote || lesson.video?.placeholderNote || '',
@@ -309,7 +310,7 @@ function resolveStaticLessonVideoSequence(lesson, storageState, metadata) {
       id: `${lesson.id}-video-1`,
       order: 1,
       title: 'Видео 1',
-      src: toPublicStorageUrl(defaultVideoFile?.relativePath ?? fallbackVideoRelativePath),
+      src: toPublicVideoUrl(defaultVideoFile?.relativePath ?? fallbackVideoRelativePath),
       relativePath: path.posix.join('storage', defaultVideoFile?.relativePath ?? fallbackVideoRelativePath),
       completionThreshold: clampCompletionThreshold(lesson.video?.completionThreshold),
       placeholderNote: metadata.placeholderNote || lesson.video?.placeholderNote || '',
@@ -407,7 +408,7 @@ function resolveLessonVideoSequence(lesson, storageState, metadata) {
         id: entry.id || `${lesson.id}-video-${index + 1}`,
         order: index + 1,
         title: entry.title || `Видео ${index + 1}`,
-        src: resolvedFile ? toPublicStorageUrl(resolvedFile.relativePath) : '',
+        src: resolvedFile ? toPublicVideoUrl(resolvedFile.relativePath) : '',
         relativePath: resolvedFile ? path.posix.join('storage', resolvedFile.relativePath) : '',
         completionThreshold: clampCompletionThreshold(
           entry.completionThreshold ?? lesson.completion_threshold
@@ -424,7 +425,7 @@ function resolveLessonVideoSequence(lesson, storageState, metadata) {
       id: `${lesson.id}-video-1`,
       order: 1,
       title: 'Видео 1',
-      src: toPublicStorageUrl(lesson.video_path),
+      src: toPublicVideoUrl(lesson.video_path),
       relativePath: videoRelativePathFromLesson(lesson.video_path),
       completionThreshold: clampCompletionThreshold(lesson.completion_threshold),
       placeholderNote: lesson.placeholder_note,

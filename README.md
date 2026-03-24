@@ -71,6 +71,23 @@ npm run cloudflare:deploy
 - Workers Builds использует отдельный Build command в настройках Cloudflare. По официальной документации Cloudflare не применяет `build.command` из Wrangler-конфига для Git-based build'ов, поэтому команду сборки нужно задать именно в Dashboard.
 - Для статического деплоя не нужен локальный Node-сервер: приложение берет данные из `shared/course-blueprint.js`, если `/api/bootstrap` недоступен.
 
+#### Видео для mini app без chunk-proxy
+
+Если mini app должна забирать видео напрямую, задайте `PUBLIC_VIDEO_ORIGIN` перед `npm run pages:build`.
+Тогда статическая сборка:
+
+- подставит этот origin только в `video.src`;
+- перестанет копировать видеофайлы в `dist-pages/storage`;
+- не будет собирать `__video_proxy__`-чанки для видео.
+
+Пример:
+
+```bash
+PUBLIC_VIDEO_ORIGIN=https://media.example.com npm run pages:build
+```
+
+Внешний media-origin должен отдавать те же пути вида `/storage/day-N/lesson-N/video.mp4`, поддерживать HTTP Range и CORS для webview.
+
 ## Структура
 
 ```text

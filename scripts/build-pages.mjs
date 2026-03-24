@@ -21,6 +21,7 @@ const maxStaticAssetBytes = 25 * 1024 * 1024;
 const chunkAssetBytes = 24 * 1024 * 1024;
 const videoChunkRoot = '__video_proxy__';
 const defaultPublicStorageOrigin = 'https://anaelacademy.efilym77.workers.dev';
+const directVideoOrigin = normalizeOrigin(process.env.PUBLIC_VIDEO_ORIGIN || process.env.PUBLIC_STORAGE_ORIGIN || '');
 
 const staticEntries = [
   'index.html',
@@ -31,8 +32,7 @@ const staticEntries = [
   '_headers',
   '_redirects',
   'shared',
-  'assets',
-  'storage'
+  'assets'
 ];
 
 rmSync(outDir, { recursive: true, force: true });
@@ -51,7 +51,13 @@ staticEntries.forEach((entry) => {
   });
 });
 
-replaceLargeVideoAssetsWithChunks(path.join(outDir, 'storage'), outDir);
+copyStorageAssets(path.join(rootDir, 'storage'), path.join(outDir, 'storage'), {
+  skipVideoAssets: Boolean(directVideoOrigin)
+});
+
+if (!directVideoOrigin) {
+  replaceLargeVideoAssetsWithChunks(path.join(outDir, 'storage'), outDir);
+}
 
 process.env.PUBLIC_STORAGE_ORIGIN ||= defaultPublicStorageOrigin;
 const { createStaticBootstrapPayload } = await import('../server/services/course-service.js');
@@ -85,13 +91,44 @@ function replaceLargeVideoAssetsWithChunks(directory, buildRoot) {
   });
 }
 
+function copyStorageAssets(sourceDirectory, targetDirectory, options = {}) {
+  if (!existsSync(sourceDirectory)) {
+    return;
+  }
+
+  mkdirSync(targetDirectory, { recursive: true });
+  const entries = readdirSync(sourceDirectory, { withFileTypes: true });
+  entries.forEach((entry) => {
+    const sourcePath = path.join(sourceDirectory, entry.name);
+    const targetPath = path.join(targetDirectory, entry.name);
+
+    if (entry.isDirectory()) {
+      copyStorageAssets(sourcePath, targetPath, options);
+      return;
+    }
+
+    if (!entry.isFile()) {
+      return;
+    }
+
+    if (options.skipVideoAssets && isVideoAsset(sourcePath)) {
+      return;
+    }
+
+    cpSync(sourcePath, targetPath);
+  });
+}
+
 function isLargeVideoAsset(absolutePath) {
-  const extension = path.extname(absolutePath).toLowerCase();
-  if (!['.mp4', '.m4v', '.mov', '.webm', '.mkv'].includes(extension)) {
+  if (!isVideoAsset(absolutePath)) {
     return false;
   }
 
   return statSync(absolutePath).size > maxStaticAssetBytes;
+}
+
+function isVideoAsset(absolutePath) {
+  return ['.mp4', '.m4v', '.mov', '.webm', '.mkv'].includes(path.extname(absolutePath).toLowerCase());
 }
 
 function chunkVideoAsset(absolutePath, buildRoot) {
@@ -157,4 +194,8 @@ function resolveVideoMimeType(absolutePath) {
 
 function normalizeAssetPath(relativePath) {
   return relativePath.replace(/\\/gu, '/');
+}
+
+function normalizeOrigin(value) {
+  return String(value || '').trim().replace(/\/+$/u, '');
 }
