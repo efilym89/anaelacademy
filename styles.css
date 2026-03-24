@@ -509,6 +509,17 @@ h3 {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.presentation-card__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.presentation-card__heading .favorite-button {
+  flex: 0 0 auto;
+}
+
 .hub-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
 }

@@ -1107,38 +1107,11 @@ function renderPresentationLibrary() {
       lessons: items.filter((lesson) => lesson.dayNumber === day.number)
     }))
     .filter((day) => day.lessons.length > 0);
-  const availableCount = items.filter((lesson) => hasPresentationAsset(lesson)).length;
-  const pdfCount = items.filter((lesson) => hasPresentationViewer(lesson)).length;
-  const sourceCount = items.filter((lesson) => getPresentationSourceHref(lesson)).length;
+  const availableCount = items.length;
 
   view.innerHTML = `
     <section class="screen-stack">
       <button class="back-link" id="backToHomeFromPresentations" type="button">К главной</button>
-
-      <section class="hero-panel hero-panel--soft">
-        <div class="section-title">
-          <div>
-            <p class="eyebrow">Презентации</p>
-            <h2>PDF-библиотека материалов</h2>
-          </div>
-          <span class="badge">${items.length}</span>
-        </div>
-        <p class="muted">Все материалы уроков собраны в одном разделе: основная версия открывается как PDF прямо в mini app, а исходный PPTX остаётся доступен как запасной файл.</p>
-        <div class="stats-strip stats-strip--courses">
-          <article class="metric-card">
-            <strong>${pdfCount}</strong>
-            <span>PDF</span>
-          </article>
-          <article class="metric-card">
-            <strong>${sourceCount}</strong>
-            <span>PPTX</span>
-          </article>
-          <article class="metric-card">
-            <strong>${availableCount}</strong>
-            <span>Материалов</span>
-          </article>
-        </div>
-      </section>
 
       <section class="section section--compact">
         <label class="search" for="presentationSearchInput">
@@ -1218,7 +1191,6 @@ function renderPresentationDetail(lessonId) {
         <p class="muted">${escapeHtml(lesson.presentation?.description || lesson.shortDescription || lesson.description)}</p>
         <div class="status-row">
           ${renderStatusChip(`День ${lesson.dayNumber} · Урок ${lesson.lessonNumber}`, 'muted')}
-          ${renderStatusChip(hasPresentationViewer(lesson) ? 'PDF готов' : 'PDF недоступен', hasPresentationViewer(lesson) ? 'success' : 'muted')}
           ${sourceHref ? renderStatusChip('Есть PPTX', 'warning') : ''}
           ${lessonProgress.isFavorite ? renderStatusChip('В избранном', 'success') : ''}
         </div>
@@ -1578,35 +1550,31 @@ function buildPresentationCard(lesson) {
   const viewerHref = getPresentationViewerHref(lesson);
   const downloadHref = getPresentationDownloadHref(lesson);
   const downloadFileName = getPresentationDownloadFileName(lesson);
-  const sourceHref = getPresentationSourceHref(lesson);
-  const sourceFileName = getPresentationSourceFileName(lesson);
-  const isAvailable = Boolean(viewerHref || sourceHref);
+  const isAvailable = Boolean(viewerHref || downloadHref);
   const lessonProgress = getLessonProgress(progress, lesson.id);
 
   return `
     <article class="lesson-card ${isAvailable ? '' : 'lesson-card--locked'}">
-      <div class="lesson-card__cover">
-        ${buildGeneratedLessonCover(lesson, 'card')}
-        ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
-      </div>
       <div class="lesson-card__body">
         <div class="lesson-card__meta">
           <span class="lesson-order">День ${lesson.dayNumber} · Урок ${lesson.lessonNumber}</span>
-          ${renderStatusChip(viewerHref ? 'PDF готов' : isAvailable ? 'Исходник' : 'Скоро', isAvailable ? 'success' : 'muted')}
+          <span class="badge">${escapeHtml(lesson.duration || '00:00')}</span>
         </div>
-        <h3>${escapeHtml(lesson.title)}</h3>
+        <div class="presentation-card__heading">
+          <h3>${escapeHtml(lesson.title)}</h3>
+          ${renderFavoriteButton(lesson.id, lessonProgress.isFavorite)}
+        </div>
         <p class="muted">${escapeHtml(lesson.presentation?.description || lesson.shortDescription || lesson.description)}</p>
-        <div class="status-row status-row--tight">
-          ${viewerHref ? renderStatusChip('PDF', 'success') : renderStatusChip('PDF нет', 'muted')}
-          ${sourceHref ? renderStatusChip('PPTX', 'warning') : ''}
-          ${lessonProgress.isFavorite ? renderStatusChip('Избранное', 'success') : ''}
-        </div>
         <div class="detail-actions detail-actions--library">
-          <button class="button ${isAvailable ? '' : 'button--disabled'}" type="button" ${
-            isAvailable ? `data-open-presentation="${escapeHtml(lesson.id)}"` : 'disabled'
-          }>
-            ${viewerHref ? 'Открыть PDF' : isAvailable ? 'Открыть материал' : 'Материал скоро'}
-          </button>
+          ${
+            isAvailable
+              ? `
+                <a class="button" href="${escapeHtml(viewerHref || downloadHref)}" target="_blank" rel="noopener">
+                  ${escapeHtml(viewerHref ? 'Открыть PDF' : 'Открыть материал')}
+                </a>
+              `
+              : `<button class="button button--disabled" type="button" disabled>Материал скоро</button>`
+          }
           ${
             downloadHref
               ? `
@@ -1620,19 +1588,11 @@ function buildPresentationCard(lesson) {
               `
               : ''
           }
-          ${
-            viewerHref && sourceHref
-              ? `
-                <a
-                  class="button button--secondary"
-                  href="${escapeHtml(sourceHref)}"
-                  download="${escapeHtml(sourceFileName || 'presentation.pptx')}"
-                >
-                  Исходник PPTX
-                </a>
-              `
-              : ''
-          }
+          <button class="button button--secondary ${isAvailable ? '' : 'button--disabled'}" type="button" ${
+            isAvailable ? `data-open-lesson="${escapeHtml(lesson.id)}"` : 'disabled'
+          }>
+            К уроку
+          </button>
         </div>
       </div>
     </article>
@@ -2204,15 +2164,6 @@ function bindNavigationActions(scope) {
   scope.querySelectorAll('[data-open-lesson]').forEach((button) => {
     button.addEventListener('click', () => {
       openLessonFromDataset(button.dataset.openLesson);
-    });
-  });
-
-  scope.querySelectorAll('[data-open-presentation]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const lessonId = button.dataset.openPresentation;
-      if (lessonId) {
-        navigateToRoute({ tab: 'home', screen: 'presentation', lessonId });
-      }
     });
   });
 
